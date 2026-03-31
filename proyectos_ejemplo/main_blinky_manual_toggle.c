@@ -28,11 +28,16 @@
 #include "stm32h533xx.h"
 #include "stm32h5xx_hal_gpio.h"
 #include "task.h"
+#include <stdint.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+typedef struct {
+  GPIO_TypeDef *port;
+  uint16_t pin;
+  uint16_t delayMS;
+} blinkerParams_td;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -50,7 +55,9 @@
 COM_InitTypeDef BspCOMInit;
 
 /* USER CODE BEGIN PV */
-
+blinkerParams_td blinker_args = {
+  GPIOA, GPIO_PIN_5, 500
+};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -136,7 +143,7 @@ int main(void)
 	Blinker,
 	"BlinkerTask",
 	100,
-	NULL,
+	(void*) &blinker_args,
 	1,
 	&blinker_handle
   );
@@ -218,27 +225,37 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void waitUntilUserButtonPress(){
+
+    // wait until user button is pressed
+		while (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) != GPIO_PIN_SET){
+			vTaskDelay(pdMS_TO_TICKS(10)); // not-so-busy waiting
+		}
+
+    // small delay to avoid noise after detecting PIN_SET state
+		vTaskDelay(pdMS_TO_TICKS(50));
+
+		// wait until user button is released
+		while (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET){
+			vTaskDelay(pdMS_TO_TICKS(10)); // not-so-busy waiting
+		}
+
+    // only return after a complete press-release action
+}
+
 void BlinkerManager(void *pvParameters){
 	uint16_t enabled = 0;
 	TaskHandle_t blinker_task = (TaskHandle_t) pvParameters;
 
 	while (1){
 
-		// wait until button is pressed
-		while (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) != GPIO_PIN_SET){
-			vTaskDelay(pdMS_TO_TICKS(10)); // not-so-busy waiting
-		}
-
-		vTaskDelay(pdMS_TO_TICKS(50));
-
-		// wait until button is released
-		while (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET){
-			vTaskDelay(pdMS_TO_TICKS(10)); // not-so-busy waiting
-		}
+    // "blocks" until it detects a press
+		waitUntilUserButtonPress();
 
 		// switch the state after each press
 		enabled = !enabled;
 
+    // simple logic to run or pause the blinker process
 		if (enabled){
 			vTaskResume(blinker_task);
 		} else {
@@ -251,9 +268,11 @@ void BlinkerManager(void *pvParameters){
 }
 
 void Blinker(void *pvParameters){
+  blinkerParams_td *bp = (blinkerParams_td *) pvParameters;
+
   while(1){
-    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-    vTaskDelay(pdMS_TO_TICKS(500));
+    HAL_GPIO_TogglePin(bp->port, bp->pin);
+    vTaskDelay(pdMS_TO_TICKS(bp->delayMS));
   }
 }
 /* USER CODE END 4 */
