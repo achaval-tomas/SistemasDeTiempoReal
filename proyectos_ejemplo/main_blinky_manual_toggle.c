@@ -24,9 +24,11 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "FreeRTOS.h"
+#include "portmacrocommon.h"
 #include "projdefs.h"
 #include "stm32h533xx.h"
 #include "stm32h5xx_hal_gpio.h"
+#include "stm32h5xx_nucleo.h"
 #include "task.h"
 #include <stdint.h>
 /* USER CODE END Includes */
@@ -42,8 +44,6 @@ typedef struct {
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define USER_BUTTON_PORT GPIOC
-#define USER_BUTTON_PIN GPIO_PIN_13
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -59,6 +59,7 @@ COM_InitTypeDef BspCOMInit;
 blinkerParams_td blinker_args = {
   GPIOA, GPIO_PIN_5, 500
 };
+TaskHandle_t manager_task_handle = NULL;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -158,7 +159,7 @@ int main(void)
     100,
     (void*) blinker_handle,
     1,
-    NULL
+    &manager_task_handle
   );
 
   vTaskStartScheduler();
@@ -223,45 +224,29 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void waitUntilUserButtonPress(){
+void BSP_PB_Callback(Button_TypeDef Button){
+  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-  // wait until user button is pressed
-  while (HAL_GPIO_ReadPin(USER_BUTTON_PORT, USER_BUTTON_PIN) != GPIO_PIN_SET){
-    vTaskDelay(pdMS_TO_TICKS(10)); // not-so-busy waiting
+  if (Button == BUTTON_USER){
+    vTaskNotifyGiveFromISR(manager_task_handle, &xHigherPriorityTaskWoken);
   }
-
-  // small delay to avoid noise after detecting PIN_SET state
-  vTaskDelay(pdMS_TO_TICKS(50));
-
-  // wait until user button is released
-  while (HAL_GPIO_ReadPin(USER_BUTTON_PORT, USER_BUTTON_PIN) == GPIO_PIN_SET){
-    vTaskDelay(pdMS_TO_TICKS(10)); // not-so-busy waiting
-  }
-
-  // only return after a complete press-release action
+  
+  portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
 void BlinkerManager(void *pvParameters){
-	uint16_t enabled = 0;
 	TaskHandle_t blinker_task = (TaskHandle_t) pvParameters;
+  uint8_t enabled = 0;
 
 	while (1){
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    enabled = !enabled;
 
-    // "blocks" until it detects a press
-		waitUntilUserButtonPress();
-
-		// switch the state after each press
-		enabled = !enabled;
-
-    // simple logic to run or pause the blinker process
-		if (enabled){
-			vTaskResume(blinker_task);
-		} else {
-			vTaskSuspend(blinker_task);
-		}
-
-		// 100ms between presses to be considered valid
-		vTaskDelay(pdMS_TO_TICKS(100));
+    if (enabled) {
+      vTaskResume(blinker_task);
+    } else {
+      vTaskSuspend(blinker_task);
+    }
 	}
 }
 
