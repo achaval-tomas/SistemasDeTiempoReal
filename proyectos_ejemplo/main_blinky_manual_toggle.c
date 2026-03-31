@@ -42,7 +42,8 @@ typedef struct {
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define USER_BUTTON_PORT GPIOC
+#define USER_BUTTON_PIN GPIO_PIN_13
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -150,10 +151,7 @@ int main(void)
   // Initially suspended
   vTaskSuspend(blinker_handle);
 
-  /*
-   * Create the blinker manager task with a higher priority to ensure it runs first.
-   * It will be adjusted by the manager.
-  */
+  /* This tasks manages the previously created blinker task */
   xTaskCreate(
 	BlinkerManager,
     "BlinkerManagerTask",
@@ -227,20 +225,20 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 void waitUntilUserButtonPress(){
 
-    // wait until user button is pressed
-		while (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) != GPIO_PIN_SET){
-			vTaskDelay(pdMS_TO_TICKS(10)); // not-so-busy waiting
-		}
+  // wait until user button is pressed
+  while (HAL_GPIO_ReadPin(USER_BUTTON_PORT, USER_BUTTON_PIN) != GPIO_PIN_SET){
+    vTaskDelay(pdMS_TO_TICKS(10)); // not-so-busy waiting
+  }
 
-    // small delay to avoid noise after detecting PIN_SET state
-		vTaskDelay(pdMS_TO_TICKS(50));
+  // small delay to avoid noise after detecting PIN_SET state
+  vTaskDelay(pdMS_TO_TICKS(50));
 
-		// wait until user button is released
-		while (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET){
-			vTaskDelay(pdMS_TO_TICKS(10)); // not-so-busy waiting
-		}
+  // wait until user button is released
+  while (HAL_GPIO_ReadPin(USER_BUTTON_PORT, USER_BUTTON_PIN) == GPIO_PIN_SET){
+    vTaskDelay(pdMS_TO_TICKS(10)); // not-so-busy waiting
+  }
 
-    // only return after a complete press-release action
+  // only return after a complete press-release action
 }
 
 void BlinkerManager(void *pvParameters){
