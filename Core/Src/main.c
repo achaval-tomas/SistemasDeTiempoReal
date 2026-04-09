@@ -47,7 +47,7 @@ typedef struct {
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define N_BUZZERS 3
+#define TIM2_TICKS_PER_SEC 1000000
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -60,12 +60,41 @@ typedef struct {
 COM_InitTypeDef BspCOMInit;
 
 /* USER CODE BEGIN PV */
-buzzerParams_td buzzers[N_BUZZERS] = {
-  {1000, 100},
-  {3000, 500},
-  {8000, 1000}
+#define N_NOTES 27
+buzzerParams_td furElise[] = {
+  {659, 150},  // E5
+  {622, 150},  // D#5
+  {659, 150},  // E5
+  {622, 150},  // D#5
+  {659, 150},  // E5
+  {494, 150},  // B4
+  {587, 150},  // D5
+  {523, 150},  // C5
+  {440, 300},  // A4
+
+  {262, 150},  // C4
+  {330, 150},  // E4
+  {440, 150},  // A4
+  {494, 300},  // B4
+
+  {330, 150},  // E4
+  {415, 150},  // G#4
+  {494, 150},  // B4
+  {523, 300},  // C5
+
+  {330, 150},  // E4
+  {659, 150},  // E5
+  {622, 150},  // D#5
+  {659, 150},  // E5
+  {622, 150},  // D#5
+  {659, 150},  // E5
+  {494, 150},  // B4
+  {587, 150},  // D5
+  {523, 150},  // C5
+  {440, 300}   // A4
 };
-TaskHandle_t manager_task_handle = NULL;
+
+TaskHandle_t song_player_task_handle = NULL;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -73,7 +102,7 @@ void SystemClock_Config(void);
 static void MPU_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
-void BuzzManager(void *pvParameters);
+void SongPlayer(void *pvParameters);
 void Buzzer(buzzerParams_td *buzzerParams);
 
 /* USER CODE END PFP */
@@ -147,12 +176,12 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   xTaskCreate(
-    BuzzManager,
-    "Buzzer Manager Task",
+    SongPlayer,
+    "Song Player Task",
     configMINIMAL_STACK_SIZE,
-    (void*) buzzers,
+    (void*) furElise,
     1,
-    (void*) &manager_task_handle
+    (void*) &song_player_task_handle
   );
 
   vTaskStartScheduler();
@@ -221,33 +250,42 @@ void BSP_PB_Callback(Button_TypeDef Button){
   BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
   if (Button == BUTTON_USER){
-    vTaskNotifyGiveFromISR(manager_task_handle, &xHigherPriorityTaskWoken);
+    vTaskNotifyGiveFromISR(song_player_task_handle, &xHigherPriorityTaskWoken);
   }
   
   portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
-void BuzzManager(void *pvParameters){
-  buzzerParams_td *buzzOptions = (buzzerParams_td*) pvParameters;
-  uint8_t n_buzz = 0;
+void SongPlayer(void *pvParameters){
+  buzzerParams_td *song = (buzzerParams_td*) pvParameters;
 
 	while (1){
+    // Wait for button press
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-    
-    Buzzer((void*) &buzzOptions[n_buzz]);
 
-    n_buzz = (n_buzz + 1) % N_BUZZERS;
+    // Play the full song
+    for (uint16_t n_note = 0; n_note < N_NOTES; n_note++){
+      Buzzer((void*) &song[n_note]);
+      vTaskDelay(pdMS_TO_TICKS(25));
+    }
+
 	}
 }
 
 void Buzzer(buzzerParams_td *buzzerParams){
   uint32_t freq = buzzerParams->frequencyHZ;
-  uint32_t pulse = freq / 2;
+
+  // Calculate ARR from frequency in HZ
+  uint32_t arr = TIM2_TICKS_PER_SEC / freq;
+
+  // Set pulse to 50% arr for max volume
+  uint32_t pulse = arr / 2;
+
   uint32_t duration = buzzerParams->durationMS;
 
   // Set up timer for PWM output
-  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pulse); 
-  __HAL_TIM_SET_AUTORELOAD(&htim2, freq);
+  __HAL_TIM_SET_AUTORELOAD(&htim2, arr);
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pulse);
 
   // Beep at the specified frequency and duration
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
