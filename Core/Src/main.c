@@ -98,22 +98,40 @@ void SystemClock_Config(void);
 static void MPU_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
+
+// System functions
 void Variometer(void *pvParameters);
 void Buzzer(buzzerParams_td buzzerParams);
 
+// User button and LED functions
+void UserButtonEXTI_Callback();
+void UserButtonEXTI_Init();
+void UserLed_Init();
+
+// BMP280 functions
+void bmp280_calibrate();
+void bmp280_init();
+float compensate_temperature_data(int32_t adc_T);
+float compensate_pressure_data(int32_t adc_P);
+void bmp280_read_data(sensorData_t *bmp280);
+
+// Helper functions
+float absf(float x);
+float estimate_altitude(sensorData_t bmp280);
+
+
 void UserLed_Init(){
-  int Led = LED_GREEN; // User LED
   GPIO_InitTypeDef  gpio_init_structure;
 
   LED2_GPIO_CLK_ENABLE();
 
-  gpio_init_structure.Pin   = LED_PIN[Led];
+  gpio_init_structure.Pin   = GPIO_PIN_5;
   gpio_init_structure.Mode  = GPIO_MODE_OUTPUT_PP;
   gpio_init_structure.Pull  = GPIO_NOPULL;
   gpio_init_structure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 
-  HAL_GPIO_Init(LED_PORT[Led], &gpio_init_structure);
-  HAL_GPIO_WritePin(LED_PORT[Led], LED_PIN[Led], GPIO_PIN_RESET);
+  HAL_GPIO_Init(GPIOA, &gpio_init_structure);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
 }
 
 void UserButtonEXTI_Init() {
@@ -128,7 +146,7 @@ void UserButtonEXTI_Init() {
   HAL_GPIO_Init(GPIOC, &gpio_init_structure);
 
   (void)HAL_EXTI_GetHandle(hpb_exti, BUTTON_USER_EXTI_LINE);
-  (void)HAL_EXTI_RegisterCallback(hpb_exti, HAL_EXTI_COMMON_CB_ID, USER_BUTTON_Callback);
+  (void)HAL_EXTI_RegisterCallback(hpb_exti, HAL_EXTI_COMMON_CB_ID, (void*) UserButtonEXTI_Callback);
 
   HAL_NVIC_SetPriority(BUTTON_USER_EXTI_IRQ, BSP_BUTTON_USER_IT_PRIORITY, 0x00);
   HAL_NVIC_EnableIRQ(BUTTON_USER_EXTI_IRQ);
@@ -263,9 +281,11 @@ void bmp280_read_data(sensorData_t *bmp280){
 }
 
 float estimate_altitude(sensorData_t bmp280){
-  float SLPressure_hPa = 101900.0f;
-  float T = bmp280.temperature_C + 273.15f;  // convert to Kelvin
-  return (287.05f * T / 9.80665f) * logf(SLPressure_hPa / bmp280.pressure_Pa);
+  float SLPressure_hPa = 101500.0f; // update according to daily QNH
+
+  float absT = bmp280.temperature_C + 273.15f;
+
+  return (287.05f * absT / 9.80665f) * logf(SLPressure_hPa / bmp280.pressure_Pa);
 }
 
 /* USER CODE END PFP */
@@ -302,7 +322,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-  UserButtonEXTI_Init()
+  UserButtonEXTI_Init();
   UserLed_Init();
   /* USER CODE END SysInit */
 
@@ -409,17 +429,24 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void BSP_PB_Callback(Button_TypeDef Button){
+void UserButtonEXTI_Callback(){
   BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-  if (Button == BUTTON_USER){
-    vTaskNotifyGiveFromISR(variometer_task_handle, &xHigherPriorityTaskWoken);
-  }
+  // the only interrupt that can trigger this is the user button
+  vTaskNotifyGiveFromISR(variometer_task_handle, &xHigherPriorityTaskWoken);
   
   portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
 void Variometer(void *pvParameters){
+  // Wait until it is turned on by button
+  ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+  
+  buzzerParams_td buzzData = {1000, 1000};
+  
+  // Initial beep to indicate the variometer is on
+  Buzzer(buzzData);
+
   // Higher alpha = More responsive (and more noisy)
   float alpha = 0.1f;
 
@@ -437,7 +464,6 @@ void Variometer(void *pvParameters){
   p0 = p0 / 30.0f;
   float pnew = p0;
   
-  buzzerParams_td buzzData = {400, 500};
 	
   while (1){
     // Wait until ~20cm altitude change is detected from starting position (1m ~ 12Pa)
@@ -447,7 +473,7 @@ void Variometer(void *pvParameters){
       pnew = pnew * (1 - alpha) + bmp280.pressure_Pa * alpha;
     }
 
-    buzzData.frequencyHz = 400; // TODO: Set frequency based on rate of altitude change
+    buzzData.frequencyHZ = 400; // TODO: Set frequency based on rate of altitude change
     buzzData.durationMS = 500; // TODO: Set duration based on rate of altitude change
     
     // Beep when altitude change is detected
