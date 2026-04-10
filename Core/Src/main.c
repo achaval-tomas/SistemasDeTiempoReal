@@ -101,6 +101,39 @@ void MX_FREERTOS_Init(void);
 void Variometer(void *pvParameters);
 void Buzzer(buzzerParams_td buzzerParams);
 
+void UserLed_Init(){
+  int Led = LED_GREEN; // User LED
+  GPIO_InitTypeDef  gpio_init_structure;
+
+  LED2_GPIO_CLK_ENABLE();
+
+  gpio_init_structure.Pin   = LED_PIN[Led];
+  gpio_init_structure.Mode  = GPIO_MODE_OUTPUT_PP;
+  gpio_init_structure.Pull  = GPIO_NOPULL;
+  gpio_init_structure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+
+  HAL_GPIO_Init(LED_PORT[Led], &gpio_init_structure);
+  HAL_GPIO_WritePin(LED_PORT[Led], LED_PIN[Led], GPIO_PIN_RESET);
+}
+
+void UserButtonEXTI_Init() {
+  BUTTON_USER_GPIO_CLK_ENABLE();
+
+  GPIO_InitTypeDef gpio_init_structure;
+  gpio_init_structure.Pin = GPIO_PIN_13;
+  gpio_init_structure.Pull = GPIO_PULLDOWN;
+  gpio_init_structure.Speed = GPIO_SPEED_FREQ_HIGH;
+  gpio_init_structure.Mode = GPIO_MODE_IT_RISING;
+
+  HAL_GPIO_Init(GPIOC, &gpio_init_structure);
+
+  (void)HAL_EXTI_GetHandle(hpb_exti, BUTTON_USER_EXTI_LINE);
+  (void)HAL_EXTI_RegisterCallback(hpb_exti, HAL_EXTI_COMMON_CB_ID, USER_BUTTON_Callback);
+
+  HAL_NVIC_SetPriority(BUTTON_USER_EXTI_IRQ, BSP_BUTTON_USER_IT_PRIORITY, 0x00);
+  HAL_NVIC_EnableIRQ(BUTTON_USER_EXTI_IRQ);
+}
+
 // Simple absolute value function for floats
 float absf(float x){
   return x < 0 ? -x : x;
@@ -269,7 +302,8 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+  UserButtonEXTI_Init()
+  UserLed_Init();
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -284,10 +318,8 @@ int main(void)
   /* Init scheduler */
 
   /* Initialize leds */
-  BSP_LED_Init(LED_GREEN);
 
   /* Initialize USER push-button, will be used to trigger an interrupt each time it's pressed.*/
-  BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
 
   /* Initialize COM1 port (115200, 8 bits (7-bit data + 1 stop bit), no parity */
   BspCOMInit.BaudRate   = 115200;
