@@ -19,8 +19,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os2.h"
+#include "i2c.h"
 #include "icache.h"
-#include "stm32h5xx_hal_tim.h"
 #include "tim.h"
 #include "gpio.h"
 
@@ -146,6 +146,7 @@ int main(void)
   MX_GPIO_Init();
   MX_ICACHE_Init();
   MX_TIM2_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -168,8 +169,6 @@ int main(void)
   {
     Error_Handler();
   }
-
-  /* Start scheduler */
 
   /* We should never get here as control is now taken by the scheduler */
 
