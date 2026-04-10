@@ -388,18 +388,29 @@ void BSP_PB_Callback(Button_TypeDef Button){
 }
 
 void Variometer(void *pvParameters){
+  // Higher alpha = More responsive (and more noisy)
+  float alpha = 0.1f;
+
   sensorData_t bmp280;
   bmp280_read_data(&bmp280);
-  float p0 = bmp280.pressure_Pa;
+  float p0 = 0;
+  
+  // Stabilize initial pressure with a 30-sample average (3 second initial wait)
+  for (uint16_t i = 0; i < 30; i++){
+    bmp280_read_data(&bmp280);
+    p0 += bmp280.pressure_Pa;
+    vTaskDelay(pdMS_TO_TICKS(100));
+  }
+  
+  p0 = p0 / 30.0f;
   float pnew = p0;
-
-	while (1){
+	
+  while (1){
     // Wait until ~20cm altitude change is detected from starting position (1m ~ 12Pa)
     while (absf(p0 - pnew) < 2.4f){
-      // update sensor data every 100ms
-      vTaskDelay(pdMS_TO_TICKS(100));
+      vTaskDelay(pdMS_TO_TICKS(200));
       bmp280_read_data(&bmp280);
-      pnew = pnew * 0.9 + bmp280.pressure_Pa * 0.1;
+      pnew = pnew * (1 - alpha) + bmp280.pressure_Pa * alpha;
     }
 
     // Beep when altitude change is detected
