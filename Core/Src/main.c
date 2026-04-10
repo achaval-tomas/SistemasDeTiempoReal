@@ -197,14 +197,16 @@ void bmp280_init(){
   // Write calibration data to global struct
   bmp280_calibrate();
 
-  // temp oversampling x1
-  // pressure oversampling x1
-  // normal mode
-  uint8_t ctrl_meas = 0x27; // TODO: increase oversampling
+  // temp oversampling x2 (010)
+  // pressure oversampling x16 (101)
+  // normal mode (11)
+  uint8_t ctrl_meas = 0b01010111;
   HAL_I2C_Mem_Write(&hi2c1, 0x76 << 1, 0xF4, 1, &ctrl_meas, 1, 100);
 
-  // standby + filter settings (default-ish)
-  uint8_t config = 0xA0;
+  // standby 62.5ms (001)
+  // filter x4 (010)
+  // spi off (0)
+  uint8_t config = 0b00101000;
   HAL_I2C_Mem_Write(&hi2c1, 0x76 << 1, 0xF5, 1, &config, 1, 100);
 
   HAL_Delay(10);
@@ -322,25 +324,23 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-  UserButtonEXTI_Init();
-  UserLed_Init();
   /* USER CODE END SysInit */
-
+  
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_ICACHE_Init();
   MX_TIM2_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-
+  
   /* USER CODE END 2 */
-
+  
   /* Init scheduler */
-
+  
   /* Initialize leds */
-
+  
   /* Initialize USER push-button, will be used to trigger an interrupt each time it's pressed.*/
-
+  
   /* Initialize COM1 port (115200, 8 bits (7-bit data + 1 stop bit), no parity */
   BspCOMInit.BaudRate   = 115200;
   BspCOMInit.WordLength = COM_WORDLENGTH_8B;
@@ -351,13 +351,15 @@ int main(void)
   {
     Error_Handler();
   }
-
+  
   /* We should never get here as control is now taken by the scheduler */
-
+  
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  UserButtonEXTI_Init();
+  UserLed_Init();
   bmp280_init();
-
+  
   xTaskCreate(
     Variometer,
     "Variometer Task",
@@ -448,7 +450,7 @@ void Variometer(void *pvParameters){
   Buzzer(buzzData);
 
   // Higher alpha = More responsive (and more noisy)
-  float alpha = 0.1f;
+  float alpha = 0.5f;
 
   sensorData_t bmp280;
   bmp280_read_data(&bmp280);
