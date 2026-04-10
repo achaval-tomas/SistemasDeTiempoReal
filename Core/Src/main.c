@@ -21,6 +21,7 @@
 #include "cmsis_os2.h"
 #include "i2c.h"
 #include "icache.h"
+#include "stm32h5xx_hal.h"
 #include "tim.h"
 #include "gpio.h"
 
@@ -132,6 +133,10 @@ void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 void SongPlayer(void *pvParameters);
 void Buzzer(buzzerParams_td *buzzerParams);
+
+float absf(float x){
+  return x < 0 ? -x : x;
+}
 
 void bmp280_calibrate(){
   uint8_t calib[24];
@@ -333,15 +338,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   bmp280_init();
 
-  sensorData_t bmp280;
-  bmp280_read_data(&bmp280);
-
-  float altitude = estimate_altitude(bmp280);
-
   xTaskCreate(
     SongPlayer,
     "Song Player Task",
-    configMINIMAL_STACK_SIZE,
+    configMINIMAL_STACK_SIZE*4,
     (void*) furElise,
     1,
     (void*) &song_player_task_handle
@@ -422,9 +422,19 @@ void BSP_PB_Callback(Button_TypeDef Button){
 void SongPlayer(void *pvParameters){
   buzzerParams_td *song = (buzzerParams_td*) pvParameters;
 
+  sensorData_t bmp280;
+  bmp280_read_data(&bmp280);
+  float p0 = bmp280.pressure_hPa;
+  float pnew = p0;
+
 	while (1){
-    // Wait for button press
-    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    // Wait until ~20cm altitude change is detected from starting position
+    while (absf(p0 - pnew) < 0.01f){
+      // update sensor data every 100ms
+      HAL_Delay(100);
+      bmp280_read_data(&bmp280);
+      pnew = pnew * 0.9 + bmp280.pressure_hPa * 0.1;
+    }
 
     // Play the full song
     for (uint16_t n_note = 0; n_note < N_NOTES; n_note++){
@@ -432,6 +442,10 @@ void SongPlayer(void *pvParameters){
       vTaskDelay(pdMS_TO_TICKS(25));
     }
 
+    // reset starting pressure for next round
+    bmp280_read_data(&bmp280);
+    p0 = bmp280.pressure_hPa;
+    pnew = p0;
 	}
 }
 
