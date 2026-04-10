@@ -43,6 +43,32 @@ typedef struct {
   uint32_t frequencyHZ;
   uint32_t durationMS;
 } buzzerParams_td;
+
+typedef struct {
+    // calibration coefficients for temperature sensor
+    uint16_t dig_t1;
+    int16_t dig_t2;
+    int16_t dig_t3;
+
+    // calibration coefficients for pressure sensor
+    uint16_t dig_p1;
+    int16_t dig_p2;
+    int16_t dig_p3;
+    int16_t dig_p4;
+    int16_t dig_p5;
+    int16_t dig_p6;
+    int16_t dig_p7;
+    int16_t dig_p8;
+    int16_t dig_p9;
+
+    // Variable to store the intermediate temperature coefficient
+    int32_t t_fine;
+} bmp280_calib_data_t;
+
+typedef struct {
+  float temperature_C;
+  float pressure_hPa;
+} sensorData_t;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -95,6 +121,8 @@ buzzerParams_td furElise[] = {
 };
 
 TaskHandle_t song_player_task_handle = NULL;
+
+bmp280_calib_data_t calib_data = {0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -104,6 +132,135 @@ void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 void SongPlayer(void *pvParameters);
 void Buzzer(buzzerParams_td *buzzerParams);
+
+void bmp280_calibrate(){
+  uint8_t calib[24];
+  HAL_I2C_Mem_Read(&hi2c1, 0x76 << 1, 0x88, 1, calib, 24, 100);
+
+  calib_data.dig_t1 = (calib[1] << 8) | calib[0];
+  calib_data.dig_t2 = (calib[3] << 8) | calib[2];
+  calib_data.dig_t3 = (calib[5] << 8) | calib[4];
+
+  calib_data.dig_p1 = (calib[7] << 8) | calib[6];
+  calib_data.dig_p2 = (calib[9] << 8) | calib[8];
+  calib_data.dig_p3 = (calib[11] << 8) |  calib[10];
+  calib_data.dig_p4 = (calib[13] << 8) |  calib[12];
+  calib_data.dig_p5 = (calib[15] << 8) |  calib[14];
+  calib_data.dig_p6 = (calib[17] << 8) |  calib[16];
+  calib_data.dig_p7 = (calib[19] << 8) |  calib[18];
+  calib_data.dig_p8 = (calib[21] << 8) |  calib[20];
+  calib_data.dig_p9 = (calib[23] << 8) |  calib[22];
+
+}
+
+void bmp280_init(){
+  // Check if sensor is connected by reading the ID register
+  uint16_t id = 0;
+  HAL_I2C_Mem_Read(&hi2c1, 0x76 << 1, 0xD0, 1, (uint8_t*)&id, 1, 100);
+  if (id != 0x58){
+    printf("Error: BMP280 not detected!\n");
+    while (1);
+  };
+
+  // Check if sensor is ready
+  HAL_StatusTypeDef res;
+  res = HAL_I2C_IsDeviceReady(&hi2c1, 0x76 << 1, 3, 100);
+  if (res != HAL_OK){
+    printf("Error: BMP280 not ready!\n");
+    while (1);
+  };
+
+  // Write calibration data to global struct
+  bmp280_calibrate();
+
+  // temp oversampling x1
+  // pressure oversampling x1
+  // normal mode
+  uint8_t ctrl_meas = 0x27;
+  HAL_I2C_Mem_Write(&hi2c1, 0x76 << 1, 0xF4, 1, &ctrl_meas, 1, 100);
+
+  // standby + filter settings (default-ish)
+  uint8_t config = 0xA0;
+  HAL_I2C_Mem_Write(&hi2c1, 0x76 << 1, 0xF5, 1, &config, 1, 100);
+
+  HAL_Delay(10);
+}
+
+// always use before pressure compensation
+float compensate_temperature_data(int32_t adc_T){
+  // Compensation formula for temperature
+  int32_t var1, var2, T;
+
+  uint16_t dig_T1 = calib_data.dig_t1;
+  int16_t dig_T2 = calib_data.dig_t2;
+  int16_t dig_T3 = calib_data.dig_t3;
+
+  var1 = ((((adc_T >> 3) - ((int32_t)dig_T1 << 1))) * ((int32_t)dig_T2)) >> 11;
+  var2 = (((((adc_T >> 4) - ((int32_t)dig_T1)) *
+          ((adc_T >> 4) - ((int32_t)dig_T1))) >> 12) *
+          ((int32_t)dig_T3)) >> 14;
+
+  calib_data.t_fine = var1 + var2;
+  T = (calib_data.t_fine * 5 + 128) >> 8;
+
+  return T / 100.0f;
+}
+
+float compensate_pressure_data(int32_t adc_P){
+  // Compensation formula for pressure
+  uint32_t P;
+  int64_t var1, var2, p;
+
+  uint16_t dig_P1 = calib_data.dig_p1;
+  int16_t dig_P2 = calib_data.dig_p2;
+  int16_t dig_P3 = calib_data.dig_p3;
+  int16_t dig_P4 = calib_data.dig_p4;
+  int16_t dig_P5 = calib_data.dig_p5;
+  int16_t dig_P6 = calib_data.dig_p6;
+  int16_t dig_P7 = calib_data.dig_p7;
+  int16_t dig_P8 = calib_data.dig_p8;
+  int16_t dig_P9 = calib_data.dig_p9;
+
+  var1 = ((int64_t)calib_data.t_fine) - 128000;
+  var2 = var1 * var1 * (int64_t)dig_P6;
+  var2 = var2 + ((var1 * (int64_t)dig_P5) << 17);
+  var2 = var2 + (((int64_t)dig_P4) << 35);
+  var1 = ((var1 * var1 * (int64_t)dig_P3) >> 8) +
+        ((var1 * (int64_t)dig_P2) << 12);
+  var1 = (((((int64_t)1) << 47) + var1)) * (int64_t)dig_P1 >> 33;
+
+  if (var1 == 0) {
+      return 0; // avoid division by zero
+  }
+
+  p = 1048576 - adc_P;
+  p = (((p << 31) - var2) * 3125) / var1;
+  var1 = ((int64_t)dig_P9 * (p >> 13) * (p >> 13)) >> 25;
+  var2 = ((int64_t)dig_P8 * p) >> 19;
+  p = ((p + var1 + var2) >> 8) + ((int64_t)dig_P7 << 4);
+  P = (uint32_t)p;
+
+  // Return pressure in hPa (P/256 is the value in Pa)
+  return P / 25600.0f;
+}
+
+// always use after calibrating the sensor
+void bmp280_read_data(sensorData_t *bmp280){
+  uint8_t data[6];
+  HAL_I2C_Mem_Read(&hi2c1, 0x76 << 1, 0xF7, 1, data, 6, 100);
+
+  int32_t adc_P = (data[0] << 12) | (data[1] << 4) | (data[2] >> 4);
+  int32_t adc_T = (data[3] << 12) | (data[4] << 4) | (data[5] >> 4);
+
+  bmp280->temperature_C = compensate_temperature_data(adc_T);
+  bmp280->pressure_hPa = compensate_pressure_data(adc_P);
+}
+
+float estimate_altitude(sensorData_t bmp280){
+  float SLPressure_hPa = 1019.0f;
+  float T = bmp280.temperature_C + 273.15f;  // convert to Kelvin
+  return (287.05f * T / 9.80665f) * logf(SLPressure_hPa / bmp280.pressure_hPa);
+}
 
 /* USER CODE END PFP */
 
@@ -174,6 +331,13 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  bmp280_init();
+
+  sensorData_t bmp280;
+  bmp280_read_data(&bmp280);
+
+  float altitude = estimate_altitude(bmp280);
+
   xTaskCreate(
     SongPlayer,
     "Song Player Task",
