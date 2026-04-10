@@ -87,43 +87,10 @@ typedef struct {
 COM_InitTypeDef BspCOMInit;
 
 /* USER CODE BEGIN PV */
-#define N_NOTES 27
-buzzerParams_td furElise[] = {
-  {659, 150},  // E5
-  {622, 150},  // D#5
-  {659, 150},  // E5
-  {622, 150},  // D#5
-  {659, 150},  // E5
-  {494, 150},  // B4
-  {587, 150},  // D5
-  {523, 150},  // C5
-  {440, 300},  // A4
-
-  {262, 150},  // C4
-  {330, 150},  // E4
-  {440, 150},  // A4
-  {494, 300},  // B4
-
-  {330, 150},  // E4
-  {415, 150},  // G#4
-  {494, 150},  // B4
-  {523, 300},  // C5
-
-  {330, 150},  // E4
-  {659, 150},  // E5
-  {622, 150},  // D#5
-  {659, 150},  // E5
-  {622, 150},  // D#5
-  {659, 150},  // E5
-  {494, 150},  // B4
-  {587, 150},  // D5
-  {523, 150},  // C5
-  {440, 300}   // A4
-};
-
-TaskHandle_t song_player_task_handle = NULL;
+TaskHandle_t variometer_task_handle = NULL;
 
 bmp280_calib_data_t calib_data = {0};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -131,9 +98,10 @@ void SystemClock_Config(void);
 static void MPU_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
-void SongPlayer(void *pvParameters);
-void Buzzer(buzzerParams_td *buzzerParams);
+void Variometer(void *pvParameters);
+void Buzzer(buzzerParams_td buzzerParams);
 
+// Simple absolute value function for floats
 float absf(float x){
   return x < 0 ? -x : x;
 }
@@ -339,12 +307,12 @@ int main(void)
   bmp280_init();
 
   xTaskCreate(
-    SongPlayer,
-    "Song Player Task",
+    Variometer,
+    "Variometer Task",
     configMINIMAL_STACK_SIZE*4,
-    (void*) furElise,
+    (void*) NULL,
     1,
-    (void*) &song_player_task_handle
+    (void*) &variometer_task_handle
   );
 
   vTaskStartScheduler();
@@ -413,15 +381,13 @@ void BSP_PB_Callback(Button_TypeDef Button){
   BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
   if (Button == BUTTON_USER){
-    vTaskNotifyGiveFromISR(song_player_task_handle, &xHigherPriorityTaskWoken);
+    vTaskNotifyGiveFromISR(variometer_task_handle, &xHigherPriorityTaskWoken);
   }
   
   portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
-void SongPlayer(void *pvParameters){
-  buzzerParams_td *song = (buzzerParams_td*) pvParameters;
-
+void Variometer(void *pvParameters){
   sensorData_t bmp280;
   bmp280_read_data(&bmp280);
   float p0 = bmp280.pressure_Pa;
@@ -436,11 +402,9 @@ void SongPlayer(void *pvParameters){
       pnew = pnew * 0.9 + bmp280.pressure_Pa * 0.1;
     }
 
-    // Play the full song
-    for (uint16_t n_note = 0; n_note < N_NOTES; n_note++){
-      Buzzer((void*) &song[n_note]);
-      vTaskDelay(pdMS_TO_TICKS(25));
-    }
+    // Beep when altitude change is detected
+    buzzerParams_td buzzData = {400, 500};
+    Buzzer(buzzData);
 
     // reset starting pressure for next round
     bmp280_read_data(&bmp280);
@@ -450,8 +414,8 @@ void SongPlayer(void *pvParameters){
 	}
 }
 
-void Buzzer(buzzerParams_td *buzzerParams){
-  uint32_t freq = buzzerParams->frequencyHZ;
+void Buzzer(buzzerParams_td buzzerParams){
+  uint32_t freq = buzzerParams.frequencyHZ;
 
   // Calculate ARR from frequency in HZ
   uint32_t arr = TIM2_TICKS_PER_SEC / freq;
@@ -459,7 +423,7 @@ void Buzzer(buzzerParams_td *buzzerParams){
   // Set pulse to 50% arr for max volume
   uint32_t pulse = arr / 2;
 
-  uint32_t duration = buzzerParams->durationMS;
+  uint32_t duration = buzzerParams.durationMS;
 
   // Set up timer for PWM output
   __HAL_TIM_SET_AUTORELOAD(&htim2, arr);
