@@ -68,7 +68,7 @@ typedef struct {
 
 typedef struct {
   float temperature_C;
-  float pressure_hPa;
+  float pressure_Pa;
 } sensorData_t;
 /* USER CODE END PTD */
 
@@ -245,8 +245,8 @@ float compensate_pressure_data(int32_t adc_P){
   p = ((p + var1 + var2) >> 8) + ((int64_t)dig_P7 << 4);
   P = (uint32_t)p;
 
-  // Return pressure in hPa (P/256 is the value in Pa)
-  return P / 25600.0f;
+  // Return pressure in Pa
+  return P / 256.0f;
 }
 
 // always use after calibrating the sensor
@@ -258,13 +258,13 @@ void bmp280_read_data(sensorData_t *bmp280){
   int32_t adc_T = (data[3] << 12) | (data[4] << 4) | (data[5] >> 4);
 
   bmp280->temperature_C = compensate_temperature_data(adc_T);
-  bmp280->pressure_hPa = compensate_pressure_data(adc_P);
+  bmp280->pressure_Pa = compensate_pressure_data(adc_P);
 }
 
 float estimate_altitude(sensorData_t bmp280){
-  float SLPressure_hPa = 1019.0f;
+  float SLPressure_hPa = 101900.0f;
   float T = bmp280.temperature_C + 273.15f;  // convert to Kelvin
-  return (287.05f * T / 9.80665f) * logf(SLPressure_hPa / bmp280.pressure_hPa);
+  return (287.05f * T / 9.80665f) * logf(SLPressure_hPa / bmp280.pressure_Pa);
 }
 
 /* USER CODE END PFP */
@@ -424,16 +424,16 @@ void SongPlayer(void *pvParameters){
 
   sensorData_t bmp280;
   bmp280_read_data(&bmp280);
-  float p0 = bmp280.pressure_hPa;
+  float p0 = bmp280.pressure_Pa;
   float pnew = p0;
 
 	while (1){
-    // Wait until ~20cm altitude change is detected from starting position
-    while (absf(p0 - pnew) < 0.01f){
+    // Wait until ~20cm altitude change is detected from starting position (1m ~ 12Pa)
+    while (absf(p0 - pnew) < 2.4f){
       // update sensor data every 100ms
-      HAL_Delay(100);
+      vTaskDelay(pdMS_TO_TICKS(100));
       bmp280_read_data(&bmp280);
-      pnew = pnew * 0.9 + bmp280.pressure_hPa * 0.1;
+      pnew = pnew * 0.9 + bmp280.pressure_Pa * 0.1;
     }
 
     // Play the full song
@@ -444,8 +444,9 @@ void SongPlayer(void *pvParameters){
 
     // reset starting pressure for next round
     bmp280_read_data(&bmp280);
-    p0 = bmp280.pressure_hPa;
+    p0 = bmp280.pressure_Pa;
     pnew = p0;
+    vTaskDelay(pdMS_TO_TICKS(100));
 	}
 }
 
