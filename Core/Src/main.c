@@ -149,7 +149,7 @@ void bmp280_init(){
   // temp oversampling x1
   // pressure oversampling x1
   // normal mode
-  uint8_t ctrl_meas = 0x27;
+  uint8_t ctrl_meas = 0x27; // TODO: increase oversampling
   HAL_I2C_Mem_Write(&hi2c1, 0x76 << 1, 0xF4, 1, &ctrl_meas, 1, 100);
 
   // standby + filter settings (default-ish)
@@ -404,6 +404,8 @@ void Variometer(void *pvParameters){
   
   p0 = p0 / 30.0f;
   float pnew = p0;
+  
+  buzzerParams_td buzzData = {400, 500};
 	
   while (1){
     // Wait until ~20cm altitude change is detected from starting position (1m ~ 12Pa)
@@ -413,8 +415,10 @@ void Variometer(void *pvParameters){
       pnew = pnew * (1 - alpha) + bmp280.pressure_Pa * alpha;
     }
 
+    buzzData.frequencyHz = 400; // TODO: Set frequency based on rate of altitude change
+    buzzData.durationMS = 500; // TODO: Set duration based on rate of altitude change
+    
     // Beep when altitude change is detected
-    buzzerParams_td buzzData = {400, 500};
     Buzzer(buzzData);
 
     // reset starting pressure for next round
