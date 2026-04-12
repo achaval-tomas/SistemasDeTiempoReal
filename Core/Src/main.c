@@ -21,7 +21,6 @@
 #include "cmsis_os2.h"
 #include "i2c.h"
 #include "icache.h"
-#include "stm32h5xx_hal.h"
 #include "tim.h"
 #include "gpio.h"
 
@@ -177,39 +176,30 @@ void bmp280_calibrate(){
 
 }
 
-void bmp280_init(){
-  // Check if sensor is connected by reading the ID register
-  uint16_t id = 0;
-  HAL_I2C_Mem_Read(&hi2c1, 0x76 << 1, 0xD0, 1, (uint8_t*)&id, 1, 100);
-  if (id != 0x58){
-    printf("Error: BMP280 not detected!\n");
-    while (1);
-  };
+void bmp280_init(void) {
+    uint8_t status, reset = 0xB6;
+    HAL_Delay(100); // Startup delay
 
-  // Check if sensor is ready
-  HAL_StatusTypeDef res;
-  res = HAL_I2C_IsDeviceReady(&hi2c1, 0x76 << 1, 3, 100);
-  if (res != HAL_OK){
-    printf("Error: BMP280 not ready!\n");
-    while (1);
-  };
+    // 1. SOFT RESET
+    HAL_I2C_Mem_Write(&hi2c1, 0x76 << 1, 0xE0, 1, &reset, 1, 100);
+    HAL_Delay(100); // WAIT for the chip to reboot!
 
-  // Write calibration data to global struct
-  bmp280_calibrate();
+    // 2. WAIT for NVM to copy (Check Status Register 0xF3)
+    int timeout = 100;
+    do {
+        HAL_I2C_Mem_Read(&hi2c1, 0x76 << 1, 0xF3, 1, &status, 1, 100);
+        HAL_Delay(1);
+    } while ((status & 0x01) && --timeout > 0);
 
-  // temp oversampling x2 (010)
-  // pressure oversampling x16 (101)
-  // normal mode (11)
-  uint8_t ctrl_meas = 0b01010111;
-  HAL_I2C_Mem_Write(&hi2c1, 0x76 << 1, 0xF4, 1, &ctrl_meas, 1, 100);
+    // 3. NOW Calibrate (must happen after reset)
+    bmp280_calibrate();
 
-  // standby 62.5ms (001)
-  // filter x4 (010)
-  // spi off (0)
-  uint8_t config = 0b00101000;
-  HAL_I2C_Mem_Write(&hi2c1, 0x76 << 1, 0xF5, 1, &config, 1, 100);
+    // 4. Configuration
+    uint8_t config = 0x10; // Filter x16
+    HAL_I2C_Mem_Write(&hi2c1, 0x76 << 1, 0xF5, 1, &config, 1, 100);
 
-  HAL_Delay(10);
+    uint8_t ctrl = 0x57; // Normal mode, Temp x2, Press x16
+    HAL_I2C_Mem_Write(&hi2c1, 0x76 << 1, 0xF4, 1, &ctrl, 1, 100);
 }
 
 // always use before pressure compensation
@@ -271,25 +261,43 @@ float compensate_pressure_data(int32_t adc_P){
 }
 
 // always use after calibrating the sensor
-void bmp280_read_data(sensorData_t *bmp280){
-  uint8_t data[6];
-  HAL_I2C_Mem_Read(&hi2c1, 0x76 << 1, 0xF7, 1, data, 6, 100);
+void bmp280_read_data(sensorData_t *bmp280) {
+    uint8_t data[6];
 
-  int32_t adc_P = (data[0] << 12) | (data[1] << 4) | (data[2] >> 4);
-  int32_t adc_T = (data[3] << 12) | (data[4] << 4) | (data[5] >> 4);
+    HAL_I2C_Mem_Read(&hi2c1, 0x76 << 1, 0xF7, 1, data, 6, 100)
 
-  bmp280->temperature_C = compensate_temperature_data(adc_T);
-  bmp280->pressure_Pa = compensate_pressure_data(adc_P);
-}
+    int32_t adc_P = (data[0] << 12) | (data[1] << 4) | (data[2] >> 4);
+    int32_t adc_T = (data[3] << 12) | (data[4] << 4) | (data[5] >> 4);
+
+    bmp280->temperature_C = compensate_temperature_data(adc_T);
+    bmp280->pressure_Pa = compensate_pressure_data(adc_P);
+  }
+
 
 float estimate_altitude(sensorData_t bmp280){
-  float SLPressure_hPa = 101500.0f; // update according to daily QNH
+  float SLPressure_Pa = 101500.0f; // update according to daily QNH
 
   float absT = bmp280.temperature_C + 273.15f;
 
-  return (287.05f * absT / 9.80665f) * logf(SLPressure_hPa / bmp280.pressure_Pa);
+  return (287.05f * absT / 9.80665f) * logf(SLPressure_Pa / bmp280.pressure_Pa);
 }
 
+void I2C_Bus_Recover(void) {
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    // 1. Set SCL and SDA as Open Drain Outputs
+    GPIO_InitStruct.Pin = GPIO_PIN_6 | GPIO_PIN_7;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    // 2. Toggle SCL 9 times to "clock out" any hung state
+    for (int i = 0; i < 9; i++) {
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+        HAL_Delay(1);
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+        HAL_Delay(1);
+    }
+}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -325,22 +333,17 @@ int main(void)
 
   /* USER CODE BEGIN SysInit */
   /* USER CODE END SysInit */
-  
+
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_ICACHE_Init();
   MX_TIM2_Init();
-  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  
+  I2C_Bus_Recover();
+  MX_I2C1_Init();
   /* USER CODE END 2 */
-  
-  /* Init scheduler */
-  
-  /* Initialize leds */
-  
-  /* Initialize USER push-button, will be used to trigger an interrupt each time it's pressed.*/
-  
+
+
   /* Initialize COM1 port (115200, 8 bits (7-bit data + 1 stop bit), no parity */
   BspCOMInit.BaudRate   = 115200;
   BspCOMInit.WordLength = COM_WORDLENGTH_8B;
@@ -351,11 +354,20 @@ int main(void)
   {
     Error_Handler();
   }
-  
+
+
   /* We should never get here as control is now taken by the scheduler */
-  
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  for(uint8_t i = 1; i < 128; i++)
+  {
+      if(HAL_I2C_IsDeviceReady(&hi2c1, i << 1, 1, 10) == HAL_OK)
+      {
+          printf("I2C device found at 0x%X\n", i);
+      }
+  }
+
   UserButtonEXTI_Init();
   UserLed_Init();
   bmp280_init();
@@ -368,7 +380,7 @@ int main(void)
     1,
     (void*) &variometer_task_handle
   );
-
+  
   vTaskStartScheduler();
   /* We should never get here as control is now taken by the scheduler */
   while (1)
@@ -457,11 +469,11 @@ void Variometer(void *pvParameters){
   float p0 = 0;
   
   // Stabilize initial pressure with a 30-sample average (3 second initial wait)
-  for (uint16_t i = 0; i < 30; i++){
-    bmp280_read_data(&bmp280);
-    p0 += bmp280.pressure_Pa;
-    vTaskDelay(pdMS_TO_TICKS(100));
-  }
+  // for (uint16_t i = 0; i < 30; i++){
+  //   bmp280_read_data(&bmp280);
+  //   p0 += bmp280.pressure_Pa;
+  //   vTaskDelay(pdMS_TO_TICKS(100));
+  // }
   
   p0 = p0 / 30.0f;
   float pnew = p0;
@@ -469,23 +481,25 @@ void Variometer(void *pvParameters){
 	
   while (1){
     // Wait until ~20cm altitude change is detected from starting position (1m ~ 12Pa)
-    while (absf(p0 - pnew) < 2.4f){
-      vTaskDelay(pdMS_TO_TICKS(200));
-      bmp280_read_data(&bmp280);
-      pnew = pnew * (1 - alpha) + bmp280.pressure_Pa * alpha;
-    }
+    // while (absf(p0 - pnew) < 2.4f){
+    //   vTaskDelay(pdMS_TO_TICKS(200));
+    //   bmp280_read_data(&bmp280);
+    //   pnew = pnew * (1 - alpha) + bmp280.pressure_Pa * alpha;
+    // }
 
     buzzData.frequencyHZ = 400; // TODO: Set frequency based on rate of altitude change
     buzzData.durationMS = 500; // TODO: Set duration based on rate of altitude change
     
     // Beep when altitude change is detected
-    Buzzer(buzzData);
-
+    //Buzzer(buzzData);
+    
     // reset starting pressure for next round
     bmp280_read_data(&bmp280);
     p0 = bmp280.pressure_Pa;
+    printf("Pressure: %u Pa, Altitude: %u m\n", (unsigned int)bmp280.pressure_Pa, (unsigned int)estimate_altitude(bmp280));
+    
     pnew = p0;
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(500));
 	}
 }
 
