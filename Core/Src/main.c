@@ -443,6 +443,34 @@ void PlayStartupTune(){
   }
 }
 
+// VARIO CONFIGURATION PARAMETERS
+
+// Valor entre 0 y 1 para actualizar valores de presión.
+// Mayor alpha = más rápido pero más ruidoso.
+#define ALPHA 0.3f
+
+// Valor entre 0 y 1 para actualizar cambios de altitud.
+// Mayor beta = más rápido pero más ruidoso.
+#define BETA 0.5f
+
+// Umbrales de velocidad vertical para inciar sonidos. (m/s)
+#define CLIMB_RATE_THRESHOLD 0.3f
+#define DESCENT_RATE_THRESHOLD -1.0f
+
+// Valores en Hz para configurar tonos de ascenso/descenso.
+#define CLIMB_FREQ_BASE 720
+#define CLIMB_FREQ_SCALE 800
+
+#define DESCENT_FREQ_BASE 300
+#define DESCENT_FREQ_SCALE 100
+#define DESCENT_FREQ_MIN 150
+
+/* MAIN VARIOMETER TASK
+ * Switch on/off through user button.
+ * Reads, filters and processes pressure data to estimate climb/descent rate.
+ * Provides sound feedback through buzzer based on vertical speed.
+ * Fully configurable through defined parameters avobe.
+ */
 void Variometer(void *pvParameters){
   // Wait until it is turned on by button
   ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
@@ -452,9 +480,6 @@ void Variometer(void *pvParameters){
   float p0 = 0.0f;
   float pnew = 0.0f;
   float p_prev = 0.0f;
-  
-  float alpha = 0.3f;   // HIGHER ALPHA = FASTER BUT NOISIER PRESSURE DETECTION
-  float beta  = 0.5f;   // HIGHER BETA = FASTER BUT NOISIER CLIMB RATE CHANGE
   
   float dp_dt = 0.0f;  // RATE OF PRESSURE CHANGE OVER TIME
   float climb_rate = 0.0f;
@@ -488,7 +513,7 @@ void Variometer(void *pvParameters){
     bmp280_read_data(&bmp280);
 
     // Low-pass filter pressure
-    pnew = pnew * (1 - alpha) + bmp280.pressure_Pa * alpha;
+    pnew = pnew * (1 - ALPHA) + bmp280.pressure_Pa * ALPHA;
 
     // Pressure rate (Pa/s)
     dp_dt = (pnew - p_prev) / dt;
@@ -498,13 +523,12 @@ void Variometer(void *pvParameters){
     climb_rate = -dp_dt * 0.083f;
 
     // Low-pass filter climb rate
-    climb_rate_filt = climb_rate_filt * (1.0f - beta) + climb_rate * beta;
+    climb_rate_filt = climb_rate_filt * (1.0f - BETA) + climb_rate * BETA;
 
     // SOUND FEEDBACK
-    if (climb_rate_filt > 0.1f){
+    if (climb_rate_filt > CLIMB_RATE_THRESHOLD){
       // Frequency increases with climb rate
-      buzzData.frequencyHZ = 720 + (int)(climb_rate_filt * 800);
-
+      buzzData.frequencyHZ = CLIMB_FREQ_BASE + (int)(climb_rate_filt * CLIMB_FREQ_SCALE);
       // Short beep
       buzzData.durationMS = 80;
 
@@ -516,10 +540,10 @@ void Variometer(void *pvParameters){
 
       vTaskDelay(pdMS_TO_TICKS(delay));
     }
-    else if (climb_rate_filt < -0.2f){
+    else if (climb_rate_filt < DESCENT_RATE_THRESHOLD){
       // Lower pitch for descent
-      buzzData.frequencyHZ = 300 + (int)(climb_rate_filt * 100);
-      if (buzzData.frequencyHZ < 150) buzzData.frequencyHZ = 150;
+      buzzData.frequencyHZ = DESCENT_FREQ_BASE + (int)(climb_rate_filt * DESCENT_FREQ_SCALE);
+      if (buzzData.frequencyHZ < DESCENT_FREQ_MIN) buzzData.frequencyHZ = DESCENT_FREQ_MIN;
 
       buzzData.durationMS = 200;
 
@@ -537,9 +561,9 @@ void Variometer(void *pvParameters){
 
     // Debug print
     if (absf(climb_rate_filt) > 0.1f){
-      printf("P: %u Pa | CL*10: %u m/s | A: %u\n",
+      printf("P: %u Pa | CL: %d cm/s | A: %u\n",
             (unsigned int)bmp280.pressure_Pa,
-            (unsigned int)(climb_rate_filt*10),
+            (int)(climb_rate_filt*100),
             (unsigned int)estimate_altitude(bmp280)
           );
     }
