@@ -174,7 +174,6 @@ void bmp280_calibrate(){
   calib_data.dig_p7 = (calib[19] << 8) |  calib[18];
   calib_data.dig_p8 = (calib[21] << 8) |  calib[20];
   calib_data.dig_p9 = (calib[23] << 8) |  calib[22];
-
 }
 
 void bmp280_init(void) {
@@ -432,6 +431,18 @@ void UserButtonEXTI_Callback(){
   portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
+void PlayStartupTune(){
+  buzzerParams_td buzzData = {0};
+
+  for (int i = 0; i < 3; i++){
+    buzzData.frequencyHZ = 500 + i*200; // Ascending frequencies
+    buzzData.durationMS = 250 - i*50; // Decreasing duration
+
+    Buzzer(buzzData);
+    vTaskDelay(pdMS_TO_TICKS(20));
+  }
+}
+
 void Variometer(void *pvParameters){
   // Wait until it is turned on by button
   ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
@@ -455,8 +466,8 @@ void Variometer(void *pvParameters){
   
   buzzerParams_td buzzData = {1000, 200};
   
-  // Initial beep to announce startup
-  Buzzer(buzzData);
+  // Play unique startup sound
+  PlayStartupTune();
 
   // Stabilize initial pressure reading
   for (uint16_t i = 0; i < 30; i++){
