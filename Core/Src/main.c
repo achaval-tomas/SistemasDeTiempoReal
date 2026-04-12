@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "FreeRTOSConfig.h"
 #include "cmsis_os2.h"
 #include "i2c.h"
 #include "icache.h"
@@ -202,7 +203,9 @@ void bmp280_init(void) {
 
     uint8_t ctrl = 0x57; // Normal mode, Temp Oversampling x2, Press Oversampling x16
     HAL_I2C_Mem_Write(&hi2c1, 0x76 << 1, 0xF4, 1, &ctrl, 1, 100);
-}
+
+    printf("BMP280 initialized successfully!\n");
+  }
 
 // always use before pressure compensation
 float compensate_temperature_data(int32_t adc_T){
@@ -433,51 +436,103 @@ void Variometer(void *pvParameters){
   // Wait until it is turned on by button
   ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
   
-  buzzerParams_td buzzData = {1000, 1000};
+  sensorData_t bmp280;
   
-  // Initial beep to indicate the variometer is on
+  float p0 = 0.0f;
+  float pnew = 0.0f;
+  float p_prev = 0.0f;
+  
+  float alpha = 0.3f;   // HIGHER ALPHA = FASTER BUT NOISIER PRESSURE DETECTION
+  float beta  = 0.5f;   // HIGHER BETA = FASTER BUT NOISIER CLIMB RATE CHANGE
+  
+  float dp_dt = 0.0f;  // RATE OF PRESSURE CHANGE OVER TIME
+  float climb_rate = 0.0f;
+  float climb_rate_filt = 0.0f;
+  
+  // Timing variables for main loop
+  float dt = 0.1f;
+  TickType_t lastTick;
+  
+  buzzerParams_td buzzData = {1000, 200};
+  
+  // Initial beep to announce startup
   Buzzer(buzzData);
 
-  // Higher alpha = More responsive (and more noisy)
-  float alpha = 0.5f;
-
-  sensorData_t bmp280;
-  bmp280_read_data(&bmp280);
-  float p0 = 0;
-  
-  // Stabilize initial pressure with a 30-sample average (3 second initial wait)
+  // Stabilize initial pressure reading
   for (uint16_t i = 0; i < 30; i++){
     bmp280_read_data(&bmp280);
     p0 += bmp280.pressure_Pa;
     vTaskDelay(pdMS_TO_TICKS(100));
   }
-  
-  p0 = p0 / 30.0f;
-  float pnew = p0;
-  
-	
+
+  p0 /= 30.0f;
+  pnew = p0;
+  p_prev = p0;
+
+  lastTick = xTaskGetTickCount();
+  dt = 0.1; // Initial guess
+
+  // Main variometer function loop
   while (1){
-    // Wait until ~20cm altitude change is detected from starting position (1m ~ 12Pa)
-    while (absf(p0 - pnew) < 2.4f){
-      vTaskDelay(pdMS_TO_TICKS(200));
-      bmp280_read_data(&bmp280);
-      pnew = pnew * (1 - alpha) + bmp280.pressure_Pa * alpha;
+    bmp280_read_data(&bmp280);
+
+    // Low-pass filter pressure
+    pnew = pnew * (1 - alpha) + bmp280.pressure_Pa * alpha;
+
+    // Pressure rate (Pa/s)
+    dp_dt = (pnew - p_prev) / dt;
+    p_prev = pnew;
+
+    // Convert to vertical speed (m/s) using 12Pa ~ 1m approximation 
+    climb_rate = -dp_dt * 0.083f;
+
+    // Low-pass filter climb rate
+    climb_rate_filt = climb_rate_filt * (1.0f - beta) + climb_rate * beta;
+
+    // SOUND FEEDBACK
+    if (climb_rate_filt > 0.1f){
+      // Frequency increases with climb rate
+      buzzData.frequencyHZ = 720 + (int)(climb_rate_filt * 800);
+
+      // Short beep
+      buzzData.durationMS = 80;
+
+      Buzzer(buzzData);
+
+      // Faster beeps for stronger climb
+      uint32_t delay = 200 - (uint32_t)(climb_rate_filt * 80);
+      if (delay < 60) delay = 60;
+
+      vTaskDelay(pdMS_TO_TICKS(delay));
+    }
+    else if (climb_rate_filt < -0.2f){
+      // Lower pitch for descent
+      buzzData.frequencyHZ = 300 + (int)(climb_rate_filt * 100);
+      if (buzzData.frequencyHZ < 150) buzzData.frequencyHZ = 150;
+
+      buzzData.durationMS = 200;
+
+      Buzzer(buzzData);
+
+      vTaskDelay(pdMS_TO_TICKS(300));
+    }
+    else{
+      // Dead zone, not enough climb or descent to trigger sound
+      vTaskDelay(pdMS_TO_TICKS(100));
     }
 
-    buzzData.frequencyHZ = 400; // TODO: Set frequency based on rate of altitude change
-    buzzData.durationMS = 500; // TODO: Set duration based on rate of altitude change
-    
-    // Beep when altitude change is detected
-    Buzzer(buzzData);
-    printf("P: %u Pa, A: %u m\n", (unsigned int)bmp280.pressure_Pa, (unsigned int)estimate_altitude(bmp280));
-    
-    // reset starting pressure for next round
-    bmp280_read_data(&bmp280);
-    p0 = bmp280.pressure_Pa;
-    pnew = p0;
+    dt = (xTaskGetTickCount() - lastTick) / (float)configTICK_RATE_HZ;
+    lastTick = xTaskGetTickCount();
 
-    vTaskDelay(pdMS_TO_TICKS(500));
-	}
+    // Debug print
+    if (absf(climb_rate_filt) > 0.1f){
+      printf("P: %u Pa | CL*10: %u m/s | A: %u\n",
+            (unsigned int)bmp280.pressure_Pa,
+            (unsigned int)(climb_rate_filt*10),
+            (unsigned int)estimate_altitude(bmp280)
+          );
+    }
+  }
 }
 
 void Buzzer(buzzerParams_td buzzerParams){
