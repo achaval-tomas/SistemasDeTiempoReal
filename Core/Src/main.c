@@ -279,7 +279,7 @@ void bmp280_read_data(sensorData_t *bmp280) {
 
 
 float estimate_altitude(sensorData_t bmp280){
-  float SLPressure_Pa = 101500.0f; // update according to daily QNH
+  float SLPressure_Pa = 102000.0f; // update according to daily QNH
 
   float absT = bmp280.temperature_C + 273.15f;
 
@@ -466,8 +466,8 @@ void PlaySwitchOffTune(){
 #define BETA 0.5f
 
 // Umbrales de velocidad vertical para inciar sonidos. (m/s)
-#define CLIMB_RATE_THRESHOLD 0.3f
-#define DESCENT_RATE_THRESHOLD -1.0f
+#define CLIMB_RATE_THRESHOLD 0.2f
+#define DESCENT_RATE_THRESHOLD -0.2f
 
 // Valores en Hz para configurar tonos de ascenso/descenso.
 #define CLIMB_FREQ_BASE 720
