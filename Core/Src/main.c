@@ -443,6 +443,18 @@ void PlayStartupTune(){
   }
 }
 
+void PlaySwitchOffTune(){
+  buzzerParams_td buzzData = {0};
+
+  for (int i = 0; i < 5; i++){
+    buzzData.frequencyHZ = 1000 - i*150; // Descending frequencies
+    buzzData.durationMS = 100 + i*25; // Increasing duration
+
+    Buzzer(buzzData);
+    vTaskDelay(pdMS_TO_TICKS(20));
+  }
+}
+
 // VARIO CONFIGURATION PARAMETERS
 
 // Valor entre 0 y 1 para actualizar valores de presión.
@@ -472,6 +484,8 @@ void PlayStartupTune(){
  * Fully configurable through defined parameters avobe.
  */
 void Variometer(void *pvParameters){
+switched_off:
+
   // Wait until it is turned on by button
   ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
   
@@ -556,17 +570,26 @@ void Variometer(void *pvParameters){
       vTaskDelay(pdMS_TO_TICKS(100));
     }
 
-    dt = (xTaskGetTickCount() - lastTick) / (float)configTICK_RATE_HZ;
-    lastTick = xTaskGetTickCount();
-
+    
     // Debug print
     if (absf(climb_rate_filt) > 0.1f){
       printf("P: %u Pa | CL: %d cm/s | A: %u\n",
-            (unsigned int)bmp280.pressure_Pa,
-            (int)(climb_rate_filt*100),
-            (unsigned int)estimate_altitude(bmp280)
-          );
+        (unsigned int)bmp280.pressure_Pa,
+        (int)(climb_rate_filt*100),
+        (unsigned int)estimate_altitude(bmp280)
+      );
     }
+    
+    // Check if button was pressed to switch off
+    if (ulTaskNotifyTake(pdTRUE, 0) != 0){
+      PlaySwitchOffTune();
+      goto switched_off;
+    }
+  
+    // Update dt for next iteration
+    dt = (xTaskGetTickCount() - lastTick) / (float)configTICK_RATE_HZ;
+    lastTick = xTaskGetTickCount();
+  
   }
 }
 
