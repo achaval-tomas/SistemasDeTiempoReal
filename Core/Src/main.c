@@ -19,8 +19,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "FreeRTOSConfig.h"
-#include "bmp280.h"
-#include "cmsis_os2.h"
 #include "i2c.h"
 #include "icache.h"
 #include "tim.h"
@@ -83,7 +81,6 @@ void UserLed_Init();
 
 // Helper functions
 float absf(float x);
-
 
 void UserLed_Init(){
   GPIO_InitTypeDef  gpio_init_structure;
