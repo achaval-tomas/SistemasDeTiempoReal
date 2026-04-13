@@ -85,13 +85,12 @@ void bmp280_init(bmp280_settings_td settings){
     bmp280_calibrate();
 
     // Apply configuration parameters
-    if (settings.config == 0){
-      settings.config = 0x10; // Default: filter x16, standby 0.5ms
-    }
     HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, 0xF5, 1, &settings.config, 1, 100);
     
-    if (settings.ctrl_meas == 0){
-      settings.ctrl_meas = 0x57; // Default: temp x2, pressure x16, normal mode
+    if (((settings.ctrl_meas & 0b11) == 0b01) || ((settings.ctrl_meas & 0b11) == 0b10)) {
+      // If forced mode is selected, clear mode bits to start with sensor off
+      // because it will be triggered by read_data calls.
+      settings.ctrl_meas &= 0b11111100;
     }
     HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, 0xF4, 1, &settings.ctrl_meas, 1, 100);
 
