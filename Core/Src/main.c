@@ -326,6 +326,7 @@ switched_off:
 
   // Wait until it is turned on by button
   ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+  printf("Variometer on!\n");
   
   bmp280_td bmp280;
   
@@ -420,6 +421,7 @@ switched_off:
     
     // Check if button was pressed to switch off
     if (ulTaskNotifyTake(pdTRUE, 0) != 0){
+      printf("Variometer off!\n");
       PlaySwitchOffTune();
       goto switched_off;
     }
