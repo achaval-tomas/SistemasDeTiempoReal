@@ -79,8 +79,6 @@ void UserButtonEXTI_Callback();
 void UserButtonEXTI_Init();
 void UserLed_Init();
 
-// Helper functions
-float absf(float x);
 
 void UserLed_Init(){
   GPIO_InitTypeDef  gpio_init_structure;
@@ -112,11 +110,6 @@ void UserButtonEXTI_Init() {
 
   HAL_NVIC_SetPriority(BUTTON_USER_EXTI_IRQ, BSP_BUTTON_USER_IT_PRIORITY, 0x00);
   HAL_NVIC_EnableIRQ(BUTTON_USER_EXTI_IRQ);
-}
-
-// Simple absolute value function for floats
-float absf(float x){
-  return x < 0 ? -x : x;
 }
 
 /* USER CODE END PFP */
@@ -275,6 +268,7 @@ void PlayStartupTune(){
     buzzData.durationMS = 250 - i*50; // Decreasing duration
 
     Buzzer(buzzData);
+    if (i == 2) break;
     vTaskDelay(pdMS_TO_TICKS(20));
   }
 }
@@ -282,11 +276,12 @@ void PlayStartupTune(){
 void PlaySwitchOffTune(){
   buzzerParams_td buzzData = {0};
 
-  for (int i = 0; i < 5; i++){
-    buzzData.frequencyHZ = 1000 - i*150; // Descending frequencies
-    buzzData.durationMS = 100 + i*25; // Increasing duration
+  for (int i = 0; i < 4; i++){
+    buzzData.frequencyHZ = 1000 - i*200; // Descending frequencies
+    buzzData.durationMS = 100 + i*10; // Increasing duration
 
     Buzzer(buzzData);
+    if (i == 3) break;
     vTaskDelay(pdMS_TO_TICKS(20));
   }
 }
@@ -303,7 +298,7 @@ void PlaySwitchOffTune(){
 
 // Umbrales de velocidad vertical para inciar sonidos. (m/s)
 #define CLIMB_RATE_THRESHOLD 0.2f
-#define DESCENT_RATE_THRESHOLD -0.2f
+#define DESCENT_RATE_THRESHOLD -0.3f
 
 // Valores en Hz para configurar tonos de ascenso/descenso.
 #define CLIMB_FREQ_BASE 720
@@ -313,7 +308,7 @@ void PlaySwitchOffTune(){
 #define DESCENT_FREQ_SCALE 100
 #define DESCENT_FREQ_MIN 150
 
-#define SEA_LEVEL_PRESSURE_PA 101500.0f
+#define SEA_LEVEL_PRESSURE_PA 10140.0f
 
 /* MAIN VARIOMETER TASK
  * Switch on/off through user button.
@@ -379,7 +374,7 @@ switched_off:
     climb_rate_filt = climb_rate_filt * (1.0f - BETA) + climb_rate * BETA;
 
     // SOUND FEEDBACK
-    if (climb_rate_filt > CLIMB_RATE_THRESHOLD){
+    if (climb_rate_filt >= CLIMB_RATE_THRESHOLD){
       // Frequency increases with climb rate
       buzzData.frequencyHZ = CLIMB_FREQ_BASE + (int)(climb_rate_filt * CLIMB_FREQ_SCALE);
       // Short beep
@@ -393,7 +388,7 @@ switched_off:
 
       vTaskDelay(pdMS_TO_TICKS(delay));
     }
-    else if (climb_rate_filt < DESCENT_RATE_THRESHOLD){
+    else if (climb_rate_filt <= DESCENT_RATE_THRESHOLD){
       // Lower pitch for descent
       buzzData.frequencyHZ = DESCENT_FREQ_BASE + (int)(climb_rate_filt * DESCENT_FREQ_SCALE);
       if (buzzData.frequencyHZ < DESCENT_FREQ_MIN) buzzData.frequencyHZ = DESCENT_FREQ_MIN;
@@ -411,7 +406,7 @@ switched_off:
 
     
     // Debug print
-    if (absf(climb_rate_filt) > 0.1f){
+    if (climb_rate_filt >= CLIMB_RATE_THRESHOLD || climb_rate_filt <= DESCENT_RATE_THRESHOLD){
       printf("P: %u Pa | CL: %d cm/s | A: %u\n",
         (unsigned int)bmp280.pressure_Pa,
         (int)(climb_rate_filt*100),
