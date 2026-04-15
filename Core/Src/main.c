@@ -308,7 +308,7 @@ void PlaySwitchOffTune(){
 #define DESCENT_FREQ_SCALE 100
 #define DESCENT_FREQ_MIN 150
 
-#define SEA_LEVEL_PRESSURE_PA 10140.0f
+#define SEA_LEVEL_PRESSURE_PA (float)101400.0f
 
 /* MAIN VARIOMETER TASK
  * Switch on/off through user button.
@@ -407,10 +407,11 @@ switched_off:
     
     // Debug print
     if (climb_rate_filt >= CLIMB_RATE_THRESHOLD || climb_rate_filt <= DESCENT_RATE_THRESHOLD){
-      printf("P: %u Pa | CL: %d cm/s | A: %u\n",
-        (unsigned int)bmp280.pressure_Pa,
-        (int)(climb_rate_filt*100),
-        (unsigned int)bmp280_estimate_altitude(bmp280, SEA_LEVEL_PRESSURE_PA)
+      printf("P: %.2f Pa | CL: %.2f m/s | A: %.2f | T: %.2f\n",
+        bmp280.pressure_Pa,
+        climb_rate_filt,
+        bmp280_estimate_altitude(bmp280, SEA_LEVEL_PRESSURE_PA),
+        bmp280.temperature_C
       );
     }
     
