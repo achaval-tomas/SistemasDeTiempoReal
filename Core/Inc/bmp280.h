@@ -17,8 +17,6 @@
 
 /*
     Configuration settings for bmp280_init.
-    Default values are set for x16 filter, 
-    normal mode, temp x2 and pressure x16.
 */
 typedef struct {
     uint8_t config;
@@ -38,6 +36,12 @@ typedef struct {
     Must be called before any other function to ensure valid readings.
 */
 void bmp280_init(bmp280_settings_td settings);
+
+/*
+    Initializes the BMP280 sensor with default (maximum resolution) settings.
+    Must be called before any other function to ensure valid readings.
+*/
+void bmp280_init_default();
 
 /*
     Reads raw data from the sensor, applies compensation formulas and fills

@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include "i2c.h"
 #include "math.h"
+#include "stm32h5xx_hal.h"
 #include "stm32h5xx_hal_i2c.h"
 
 // Calibration coefficients for temperature and pressure compensation,
@@ -62,10 +63,10 @@ void bmp280_calibrate(){
 
 void bmp280_init(bmp280_settings_td settings){
     HAL_StatusTypeDef res;
-    uint16_t id = 0;
+    uint8_t id = 0;
     
     // Check if sensor is connected by reading the ID register
-    res = HAL_I2C_Mem_Read(&hi2c1, BMP280_ADDR << 1, 0xD0, 1, (uint8_t*)&id, 1, 100);
+    res = HAL_I2C_Mem_Read(&hi2c1, BMP280_ADDR << 1, 0xD0, 1, &id, 1, 100);
     if (res != HAL_OK){
       printf("Error: Failed to read from BMP280 (i2c read failed)!\n");
       while (1);
@@ -80,7 +81,14 @@ void bmp280_init(bmp280_settings_td settings){
       printf("Error: BMP280 not ready!\n");
       while (1);
     }
+    
+    // Perform a soft reset to ensure proper calibration values are set
+    uint8_t reset = 0xB6;
+    HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, 0xE0, 1, &reset, 1, 100);
   
+    // Wait for reset to be done (~2ms according to Bosch)
+    HAL_Delay(5);
+
     // Write calibration data into global struct
     bmp280_calibrate();
 
@@ -95,6 +103,13 @@ void bmp280_init(bmp280_settings_td settings){
     HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, 0xF4, 1, &settings.ctrl_meas, 1, 100);
 
     printf("BMP280 initialized successfully!\n");
+  }
+
+  void bmp280_init_default(){
+    bmp280_init((bmp280_settings_td){
+      .config = 0b00010000, // standby 0.5ms, filter x16
+      .ctrl_meas = 0b01010111 // temp x2, pressure x16, normal mode
+    });
   }
 
 // Always use before pressure compensation to update t_fine

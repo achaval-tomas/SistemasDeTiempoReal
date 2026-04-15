@@ -183,7 +183,7 @@ int main(void)
   UserButtonEXTI_Init();
   UserLed_Init();
   bmp280_init((bmp280_settings_td){
-    .config = 0b00010000, // filter x16, standby 0.5ms
+    .config = 0b00010000, // standby 0.5ms, filter x16
     .ctrl_meas = 0b01010111 // temp x2, pressure x16, normal mode
   });
   
@@ -313,7 +313,7 @@ void PlaySwitchOffTune(){
 #define DESCENT_FREQ_SCALE 100
 #define DESCENT_FREQ_MIN 150
 
-#define SEA_LEVEL_PRESSURE_PA 102000.0f
+#define SEA_LEVEL_PRESSURE_PA 101500.0f
 
 /* MAIN VARIOMETER TASK
  * Switch on/off through user button.
