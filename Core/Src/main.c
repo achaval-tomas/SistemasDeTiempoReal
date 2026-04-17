@@ -56,6 +56,23 @@ typedef struct {
   buzzerParams_td vario; // Solo para comandos de tipo BUZZ_VARIO
 } buzzerQueueData_td;
 
+typedef enum {
+  DISPLAY_UPDATE = 0,
+  DISPLAY_CLEAR = 1,
+  DISPLAY_ON = 2,
+  DISPLAY_OFF = 3
+} displayCommandType_td;
+
+typedef struct {
+  bmp280_td sensorData;
+  float climb_rate;
+} displayUpdateData_td;
+
+typedef struct {
+  displayCommandType_td type;
+  displayUpdateData_td updateData; // Solo para comandos de tipo DISPLAY_UPDATE
+} displayQueueData_td;
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -87,6 +104,12 @@ void MX_FREERTOS_Init(void);
 // System functions
 void VariometerTask(void *pvParameters);
 void BuzzerTask(void *pvParameters);
+void DisplayTask(void *pvParameters);
+
+// Helper functions
+void Buzzer(buzzerParams_td buzzData);
+void PlayStartupTune();
+void PlaySwitchOffTune();
 
 // User button and LED functions
 void UserButtonEXTI_Callback();
@@ -217,6 +240,15 @@ int main(void)
     2,
     NULL
   );
+
+  xTaskCreate(
+    DisplayTask,
+    "Display Task",
+    configMINIMAL_STACK_SIZE*2,
+    (void*) NULL,
+    0,
+    NULL
+  );
   
   vTaskStartScheduler();
   /* We should never get here as control is now taken by the scheduler */
@@ -329,21 +361,17 @@ switched_off:
   buzzerQueueData_td buzzQueueData = {.type = BUZZ_STARTUP, .vario = {0}};
   xQueueSend(buzzerQueue, (void *)&buzzQueueData, 0);
   
+  displayQueueData_td displayQueueData = {
+    .type = DISPLAY_ON
+  };
+  xQueueSend(displayQueue, (void *)&displayQueueData, 0);
   
-  lcd_on();
-  lcd_put_cur(0, 0);
-  lcd_printf("Variometer ON!");
   
   bmp280_td bmp280;
-  uint64_t delayMS, delay_climb = 100;
+  uint64_t delayMS = 100, delay_climb = 100;
   
-  float p0 = 0.0f;
-  float pnew = 0.0f;
-  float p_prev = 0.0f;
-  
-  float dp_dt = 0.0f;  // RATE OF PRESSURE CHANGE OVER TIME
-  float climb_rate = 0.0f;
-  float climb_rate_filt = 0.0f;
+  float p0, pnew, p_prev, dp_dt, climb_rate, climb_rate_filt;
+  p0 = pnew = p_prev = dp_dt = climb_rate = climb_rate_filt = 0.0f;
   
   // Timing variables for main loop
   float dt = 0.1f;
@@ -416,34 +444,22 @@ switched_off:
     }
 
     // Always update display
-    // char displayBuffer[32];
-    // snprintf(displayBuffer, sizeof(displayBuffer), "V %+6.2fm/s", climb_rate_filt);
-    // xQueueSend(displayQueue, (void *)&displayBuffer, 0);
+    displayQueueData.type = DISPLAY_UPDATE;
+    displayQueueData.updateData.sensorData = (bmp280_td){bmp280.temperature_C, pnew};
+    displayQueueData.updateData.climb_rate = climb_rate_filt;
+    xQueueSend(displayQueue, (void *)&displayQueueData, 0);
 
     vTaskDelay(pdMS_TO_TICKS(delayMS));
-
-    
-    // Debug print
-    if (climb_rate_filt >= CLIMB_RATE_THRESHOLD || climb_rate_filt <= DESCENT_RATE_THRESHOLD){
-      lcd_clear();
-      lcd_put_cur(0, 0);
-      lcd_printf(
-    "ASL %.0fm",
-        bmp280_estimate_altitude(
-          (bmp280_td){bmp280.temperature_C, pnew},
-           SEA_LEVEL_PRESSURE_PA
-        )
-      );
-      lcd_put_cur(1, 0);
-      lcd_printf("V %+6.2fm/s", climb_rate_filt);
-      vTaskDelay(pdMS_TO_TICKS(50));
-    }
     
     // Check if button was pressed to switch off
     if (ulTaskNotifyTake(pdTRUE, 0) != 0){
+
       buzzQueueData.type = BUZZ_SHUTDOWN;
       xQueueSend(buzzerQueue, (void *)&buzzQueueData, 0);
-      lcd_off();
+
+      displayQueueData.type = DISPLAY_OFF;
+      xQueueSend(displayQueue, (void *)&displayQueueData, 0);
+
       goto switched_off;
     }
   
@@ -512,6 +528,58 @@ void BuzzerTask(void *pvParameters){
     } else if (buzzQueueData.type == BUZZ_SHUTDOWN){
       PlaySwitchOffTune();
     }
+  }
+}
+
+
+void DisplayTask(void *pvParameters) {
+  displayQueueData_td disData;
+  char temp[17]; 
+  float altitude, climb_rate;
+
+  while (1) {
+    xQueueReceive(displayQueue, (void *)&disData, portMAX_DELAY);
+      
+    switch (disData.type) {
+      
+      case DISPLAY_UPDATE:
+        altitude = bmp280_estimate_altitude(disData.updateData.sensorData, SEA_LEVEL_PRESSURE_PA);
+        climb_rate = disData.updateData.climb_rate;
+
+        // Line 1: Altitude
+        lcd_put_cur(0, 0);
+        snprintf(temp, sizeof(temp), "Alt: %.0fm", altitude);
+        lcd_printf("%-16s", temp);
+
+        // Line 2: Climb Rate
+        lcd_put_cur(1, 0);
+        snprintf(temp, sizeof(temp), "V: %+.1fm/s", climb_rate);
+        lcd_printf("%-16s", temp);
+        break;
+
+      case DISPLAY_CLEAR:
+        lcd_clear();
+        break;
+
+      case DISPLAY_ON:
+        lcd_on();
+        
+        lcd_put_cur(0, 0);
+        lcd_printf("%-16s", "Variometer ON!");
+        
+        lcd_put_cur(1, 0);
+        lcd_printf("%-16s", "Initializing...");
+        break;
+
+      case DISPLAY_OFF:
+        lcd_off();
+        break;
+
+      default:
+        // ignore
+        break;
+    }
+    
   }
 }
 
