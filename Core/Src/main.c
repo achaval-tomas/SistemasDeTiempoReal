@@ -35,6 +35,7 @@
 #include <stdint.h>
 #include "bmp280.h"
 #include "lcd.h"
+#include "queue.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,6 +44,18 @@ typedef struct {
   uint32_t frequencyHZ;
   uint32_t durationMS;
 } buzzerParams_td;
+
+typedef enum {
+  BUZZ_VARIO = 0,
+  BUZZ_STARTUP = 1,
+  BUZZ_SHUTDOWN = 2
+} buzzerCommandType_td;
+
+typedef struct {
+  buzzerCommandType_td type;
+  buzzerParams_td vario; // Solo para comandos de tipo BUZZ_VARIO
+} buzzerQueueData_td;
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -61,6 +74,7 @@ COM_InitTypeDef BspCOMInit;
 
 /* USER CODE BEGIN PV */
 TaskHandle_t variometer_task_handle = NULL;
+QueueHandle_t buzzerQueue, displayQueue;
 
 /* USER CODE END PV */
 
@@ -71,8 +85,8 @@ void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 
 // System functions
-void Variometer(void *pvParameters);
-void Buzzer(buzzerParams_td buzzerParams);
+void VariometerTask(void *pvParameters);
+void BuzzerTask(void *pvParameters);
 
 // User button and LED functions
 void UserButtonEXTI_Callback();
@@ -179,35 +193,29 @@ int main(void)
     .config = 0b00010000, // standby 0.5ms, filter x16
     .ctrl_meas = 0b01010111 // temp x2, pressure x16, normal mode
   });
-  
-  uint8_t i;
-  HAL_StatusTypeDef result;
-  for (i = 1; i < 128; i++) {
-      /* Se desplaza 1 bit a la izquierda para el formato de 8 bits de STM32 */
-      result = HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(i << 1), 3, 5);
-      if (result == HAL_OK) {
-          /* Si tienes redireccionado printf a UART, verás la dirección aquí */
-          printf("i2c1: 0x%02X\r\n", i);
-          /* Si usas el depurador, pon un breakpoint aquí para ver el valor de 'i' */
-      }
-      result = HAL_I2C_IsDeviceReady(&hi2c2, (uint16_t)(i << 1), 3, 5);
-      if (result == HAL_OK) {
-          /* Si tienes redireccionado printf a UART, verás la dirección aquí */
-          printf("i2c2: 0x%02X\r\n", i);
-          /* Si usas el depurador, pon un breakpoint aquí para ver el valor de 'i' */
-      }
-  }
 
   // Init LCD display
   lcd_init();
 
+  buzzerQueue = xQueueCreate(2, sizeof(buzzerQueueData_td));
+  displayQueue = xQueueCreate(2, sizeof(char[32]));
+
   xTaskCreate(
-    Variometer,
+    VariometerTask,
     "Variometer Task",
     configMINIMAL_STACK_SIZE*4,
     (void*) NULL,
     1,
     (void*) &variometer_task_handle
+  );
+
+  xTaskCreate(
+    BuzzerTask,
+    "Buzzer Task",
+    configMINIMAL_STACK_SIZE*2,
+    (void*) NULL,
+    2,
+    NULL
   );
   
   vTaskStartScheduler();
@@ -281,32 +289,6 @@ void UserButtonEXTI_Callback(){
   portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
-void PlayStartupTune(){
-  buzzerParams_td buzzData = {0};
-
-  for (int i = 0; i < 3; i++){
-    buzzData.frequencyHZ = 500 + i*200; // Ascending frequencies
-    buzzData.durationMS = 250 - i*50; // Decreasing duration
-
-    Buzzer(buzzData);
-    if (i == 2) break;
-    vTaskDelay(pdMS_TO_TICKS(20));
-  }
-}
-
-void PlaySwitchOffTune(){
-  buzzerParams_td buzzData = {0};
-
-  for (int i = 0; i < 4; i++){
-    buzzData.frequencyHZ = 1000 - i*200; // Descending frequencies
-    buzzData.durationMS = 100 + i*10; // Increasing duration
-
-    Buzzer(buzzData);
-    if (i == 3) break;
-    vTaskDelay(pdMS_TO_TICKS(20));
-  }
-}
-
 // VARIO CONFIGURATION PARAMETERS
 
 // Valor entre 0 y 1 para actualizar valores de presión.
@@ -337,17 +319,23 @@ void PlaySwitchOffTune(){
  * Provides sound feedback through buzzer based on vertical speed.
  * Fully configurable through defined parameters avobe.
  */
-void Variometer(void *pvParameters){
+void VariometerTask(void *pvParameters){
 switched_off:
 
   // Wait until it is turned on by button
   ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-  printf("Variometer on!\n");
+
+  // Send startup sound command to buzzer task
+  buzzerQueueData_td buzzQueueData = {.type = BUZZ_STARTUP, .vario = {0}};
+  xQueueSend(buzzerQueue, (void *)&buzzQueueData, 0);
+  
+  
   lcd_on();
   lcd_put_cur(0, 0);
   lcd_printf("Variometer ON!");
   
   bmp280_td bmp280;
+  uint64_t delayMS, delay_climb = 100;
   
   float p0 = 0.0f;
   float pnew = 0.0f;
@@ -362,9 +350,6 @@ switched_off:
   TickType_t lastTick;
   
   buzzerParams_td buzzData = {1000, 200};
-  
-  // Play unique startup sound
-  PlayStartupTune();
 
   // Stabilize initial pressure reading
   for (uint16_t i = 0; i < 30; i++){
@@ -404,13 +389,10 @@ switched_off:
       // Short beep
       buzzData.durationMS = 80;
 
-      Buzzer(buzzData);
-
       // Faster beeps for stronger climb
-      uint32_t delay = 200 - (uint32_t)(climb_rate_filt * 80);
-      if (delay < 60) delay = 60;
+      delay_climb = 200 - (uint32_t)(climb_rate_filt * 80);
 
-      vTaskDelay(pdMS_TO_TICKS(delay));
+      delayMS = delay_climb < 60 ? 60 : delay_climb;
     }
     else if (climb_rate_filt <= DESCENT_RATE_THRESHOLD){
       // Lower pitch for descent
@@ -419,27 +401,30 @@ switched_off:
 
       buzzData.durationMS = 200;
 
-      Buzzer(buzzData);
-
-      vTaskDelay(pdMS_TO_TICKS(300));
+      delayMS = 300;
     }
     else{
       // Dead zone, not enough climb or descent to trigger sound
-      vTaskDelay(pdMS_TO_TICKS(100));
+      delayMS = 100;
     }
+
+    // Send sound command to buzzer task
+    if (climb_rate_filt >= CLIMB_RATE_THRESHOLD || climb_rate_filt <= DESCENT_RATE_THRESHOLD){
+      buzzQueueData.type = BUZZ_VARIO;
+      buzzQueueData.vario = buzzData;
+      xQueueSend(buzzerQueue, (void *)&buzzQueueData, 0);
+    }
+
+    // Always update display
+    // char displayBuffer[32];
+    // snprintf(displayBuffer, sizeof(displayBuffer), "V %+6.2fm/s", climb_rate_filt);
+    // xQueueSend(displayQueue, (void *)&displayBuffer, 0);
+
+    vTaskDelay(pdMS_TO_TICKS(delayMS));
 
     
     // Debug print
     if (climb_rate_filt >= CLIMB_RATE_THRESHOLD || climb_rate_filt <= DESCENT_RATE_THRESHOLD){
-      printf("P: %.2f Pa | CL: %.2f m/s | A: %.2f | T: %.2f\n",
-        pnew,
-        climb_rate_filt,
-        bmp280_estimate_altitude(
-          (bmp280_td){bmp280.temperature_C, pnew},
-           SEA_LEVEL_PRESSURE_PA
-        ),
-        bmp280.temperature_C
-      );
       lcd_clear();
       lcd_put_cur(0, 0);
       lcd_printf(
@@ -456,8 +441,8 @@ switched_off:
     
     // Check if button was pressed to switch off
     if (ulTaskNotifyTake(pdTRUE, 0) != 0){
-      printf("Variometer off!\n");
-      PlaySwitchOffTune();
+      buzzQueueData.type = BUZZ_SHUTDOWN;
+      xQueueSend(buzzerQueue, (void *)&buzzQueueData, 0);
       lcd_off();
       goto switched_off;
     }
@@ -469,16 +454,14 @@ switched_off:
   }
 }
 
-void Buzzer(buzzerParams_td buzzerParams){
-  uint32_t freq = buzzerParams.frequencyHZ;
+void Buzzer(buzzerParams_td buzzData){
+  uint32_t arr, pulse;
 
   // Calculate ARR from frequency in HZ
-  uint32_t arr = TIM2_TICKS_PER_SEC / freq;
+  arr = TIM2_TICKS_PER_SEC / buzzData.frequencyHZ;
 
   // Set pulse to 50% arr for max volume
-  uint32_t pulse = arr / 2;
-
-  uint32_t duration = buzzerParams.durationMS;
+  pulse = arr / 2;
 
   // Set up timer for PWM output
   __HAL_TIM_SET_AUTORELOAD(&htim2, arr);
@@ -486,9 +469,52 @@ void Buzzer(buzzerParams_td buzzerParams){
 
   // Beep at the specified frequency and duration
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-  vTaskDelay(pdMS_TO_TICKS(duration));
+  vTaskDelay(pdMS_TO_TICKS(buzzData.durationMS));
   HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
 }
+
+void PlayStartupTune(){
+  buzzerParams_td buzzData = {0};
+
+  for (int i = 0; i < 3; i++){
+    buzzData.frequencyHZ = 500 + i*200; // Ascending frequencies
+    buzzData.durationMS = 250 - i*50; // Decreasing duration
+
+    Buzzer(buzzData);
+    if (i == 2) break;
+    vTaskDelay(pdMS_TO_TICKS(20));
+  }
+}
+
+void PlaySwitchOffTune(){
+  buzzerParams_td buzzData = {0};
+
+  for (int i = 0; i < 4; i++){
+    buzzData.frequencyHZ = 1000 - i*200; // Descending frequencies
+    buzzData.durationMS = 100 + i*10; // Increasing duration
+
+    Buzzer(buzzData);
+    if (i == 3) break;
+    vTaskDelay(pdMS_TO_TICKS(20));
+  }
+}
+
+void BuzzerTask(void *pvParameters){
+  buzzerQueueData_td buzzQueueData;
+
+  while (1){
+    xQueueReceive(buzzerQueue, (void *)&buzzQueueData, portMAX_DELAY);
+
+    if (buzzQueueData.type == BUZZ_VARIO){
+      Buzzer(buzzQueueData.vario);
+    } else if (buzzQueueData.type == BUZZ_STARTUP){
+      PlayStartupTune();
+    } else if (buzzQueueData.type == BUZZ_SHUTDOWN){
+      PlaySwitchOffTune();
+    }
+  }
+}
+
 /* USER CODE END 4 */
 
  /* MPU Configuration */
