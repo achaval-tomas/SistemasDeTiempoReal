@@ -14,15 +14,13 @@
 #define PIN_EN    (1 << 2)       // P2 -> Enable
 #define BACKLIGHT (1 << 3)       // P3 -> Backlight (1 = ON)
 
-/**
- * @brief Envía comandos o datos usando la secuencia de 4 pasos (Strobe) por cada nibble
+/*
+ *  Envía comandos o datos usando la secuencia de 4 pasos (Strobe) por cada nibble
  */
 void lcd_send_internal(uint8_t data, uint8_t flags) {
     uint8_t up = data & 0xF0;
     uint8_t lo = (data << 4) & 0xF0;
     uint8_t data_t[4]; 
-
-    /* Secuencia de 4 bits: El LCD captura en el flanco de bajada de EN */
     
     // Nibble Superior
     data_t[0] = up | flags | BACKLIGHT | PIN_EN;  // EN=1
@@ -45,29 +43,26 @@ void lcd_send_data(char data) {
 }
 
 void lcd_init(void) {
-    // 1. Espera extra larga para que el voltaje se estabilice
-    HAL_Delay(100); 
+    HAL_Delay(50); // Espera inicial >40ms
 
-    // 2. Secuencia de reset manual (Modo 8-bit inicial)
-    // Se envía 0x30 tres veces para despertar al controlador
+    // Secuencia de inicialización modo 4 bits (según datasheet HD44780)
+    lcd_send_cmd(0x30);
+    HAL_Delay(5);
+    lcd_send_cmd(0x30);
+    HAL_Delay(1);
     lcd_send_cmd(0x30);
     HAL_Delay(10);
-    lcd_send_cmd(0x30);
-    HAL_Delay(1);
-    lcd_send_cmd(0x30);
-    HAL_Delay(1);
-
-    // 3. Establecer modo 4-bits
-    lcd_send_cmd(0x20); 
+    
+    lcd_send_cmd(0x20); // Cambio definitivo a modo 4 bits
     HAL_Delay(10);
 
-    // 4. Configuración final
-    lcd_send_cmd(0x28); // 2 líneas, 5x8
-    HAL_Delay(1);
+    // Configuración operativa
+    lcd_send_cmd(0x28); // 2 líneas, 5x8 font
+    lcd_send_cmd(0x08); // Display OFF
+    lcd_send_cmd(0x01); // Clear Display
+    HAL_Delay(2);       // Comando Clear requiere más tiempo
+    lcd_send_cmd(0x06); // Entry mode
     lcd_send_cmd(0x0C); // Display ON, Cursor OFF
-    HAL_Delay(1);
-    lcd_send_cmd(0x01); // Clear
-    HAL_Delay(5);       // El clear necesita mucho tiempo
 }
 
 void lcd_send_string(char *str) {
@@ -84,11 +79,6 @@ void lcd_clear(void) {
     HAL_Delay(2);
 }
 
-/**
- * @brief Imprime texto formateado en el LCD (estilo printf)
- * @param fmt: Cadena de formato (ej: "Temp: %d C")
- * @param ...: Argumentos variables
- */
 void lcd_printf(const char *fmt, ...) {
     char buffer[20]; // El buffer debe ser al menos del tamaño del LCD (16 o 20)
     va_list args;
