@@ -35,6 +35,7 @@
 #include "task.h"
 #include <stdint.h>
 #include "bmp280.h"
+#include "lcd.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -180,6 +181,21 @@ int main(void)
     .ctrl_meas = 0b01010111 // temp x2, pressure x16, normal mode
   });
   
+  uint8_t i;
+  HAL_StatusTypeDef result;
+  for (i = 1; i < 128; i++) {
+      /* Se desplaza 1 bit a la izquierda para el formato de 8 bits de STM32 */
+      result = HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(i << 1), 3, 5);
+      if (result == HAL_OK) {
+          /* Si tienes redireccionado printf a UART, verás la dirección aquí */
+          printf("Dispositivo encontrado en: 0x%02X\r\n", i << 1);
+          /* Si usas el depurador, pon un breakpoint aquí para ver el valor de 'i' */
+      }
+  }
+
+  // Init LCD display
+  lcd_init();
+
   xTaskCreate(
     Variometer,
     "Variometer Task",
@@ -408,11 +424,26 @@ switched_off:
     // Debug print
     if (climb_rate_filt >= CLIMB_RATE_THRESHOLD || climb_rate_filt <= DESCENT_RATE_THRESHOLD){
       printf("P: %.2f Pa | CL: %.2f m/s | A: %.2f | T: %.2f\n",
-        bmp280.pressure_Pa,
+        pnew,
         climb_rate_filt,
-        bmp280_estimate_altitude(bmp280, SEA_LEVEL_PRESSURE_PA),
+        bmp280_estimate_altitude(
+          (bmp280_td){bmp280.temperature_C, pnew},
+           SEA_LEVEL_PRESSURE_PA
+        ),
         bmp280.temperature_C
       );
+      lcd_clear();
+      lcd_put_cur(0, 0);
+      lcd_printf(
+    "ASL %.0fm",
+        bmp280_estimate_altitude(
+          (bmp280_td){bmp280.temperature_C, pnew},
+           SEA_LEVEL_PRESSURE_PA
+        )
+      );
+      lcd_put_cur(1, 0);
+      lcd_printf("V %+6.2fm/s", climb_rate_filt);
+      vTaskDelay(pdMS_TO_TICKS(50));
     }
     
     // Check if button was pressed to switch off
