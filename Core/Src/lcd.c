@@ -14,6 +14,8 @@
 #define PIN_EN    (1 << 2)       // P2 -> Enable
 #define BACKLIGHT (1 << 3)       // P3 -> Backlight (1 = ON)
 
+static uint8_t lcd_backlight_val = BACKLIGHT; // Por defecto encendido (PIN_BACKLIGHT)
+
 /*
  *  Envía comandos o datos usando la secuencia de 4 pasos (Strobe) por cada nibble
  */
@@ -23,12 +25,12 @@ void lcd_send_internal(uint8_t data, uint8_t flags) {
     uint8_t data_t[4]; 
     
     // Nibble Superior
-    data_t[0] = up | flags | BACKLIGHT | PIN_EN;  // EN=1
-    data_t[1] = up | flags | BACKLIGHT;           // EN=0
+    data_t[0] = up | flags | lcd_backlight_val | PIN_EN;
+    data_t[1] = up | flags | lcd_backlight_val;           // EN=0
 
     // Nibble Inferior
-    data_t[2] = lo | flags | BACKLIGHT | PIN_EN;  // EN=1
-    data_t[3] = lo | flags | BACKLIGHT;           // EN=0
+    data_t[2] = lo | flags | lcd_backlight_val | PIN_EN;  // EN=1
+    data_t[3] = lo | flags | lcd_backlight_val;           // EN=0
 
     // Se envían los 4 bytes en una sola ráfaga I2C
     HAL_I2C_Master_Transmit(&hi2c1, SLAVE_ADDRESS_LCD, data_t, 4, 100);
@@ -88,4 +90,33 @@ void lcd_printf(const char *fmt, ...) {
     va_end(args);
 
     lcd_send_string(buffer);
+}
+
+void lcd_backlight(uint8_t state) {
+    if (state) lcd_backlight_val = (1 << 3); // Encender
+    else       lcd_backlight_val = 0;        // Apagar
+    
+    // Comando vacío para actualizar el estado
+    lcd_send_cmd(0x00); 
+}
+
+void lcd_off(void){
+    lcd_backlight(0);
+    lcd_clear();
+}
+void lcd_on(void){
+    lcd_clear();
+    lcd_backlight(1);
+}
+
+/**
+ * mode 0 = Invisible, 1 = Visible (raya), 2 = Visible + Parpadeo (bloque)
+ */
+void lcd_cursor(uint8_t mode) {
+    switch(mode) {
+        case 0: lcd_send_cmd(0x0C); break; // Solo pantalla
+        case 1: lcd_send_cmd(0x0E); break; // Pantalla + Cursor
+        case 2: lcd_send_cmd(0x0F); break; // Pantalla + Cursor + Parpadeo
+        default: break;
+    }
 }
