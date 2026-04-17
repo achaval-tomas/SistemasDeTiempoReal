@@ -33,7 +33,7 @@ void lcd_send_internal(uint8_t data, uint8_t flags) {
     data_t[3] = lo | flags | lcd_backlight_val;           // EN=0
 
     // Se envían los 4 bytes en una sola ráfaga I2C
-    HAL_I2C_Master_Transmit(&hi2c1, SLAVE_ADDRESS_LCD, data_t, 4, 100);
+    HAL_I2C_Master_Transmit(&hi2c2, SLAVE_ADDRESS_LCD, data_t, 4, 100);
 }
 
 void lcd_send_cmd(char cmd) {
@@ -45,24 +45,33 @@ void lcd_send_data(char data) {
 }
 
 void lcd_init(void) {
-    HAL_Delay(50); // Espera inicial >40ms
+    HAL_Delay(50); // Wait for VCC to stabilize
 
-    // Secuencia de inicialización modo 4 bits (según datasheet HD44780)
-    lcd_send_cmd(0x30);
-    HAL_Delay(5);
-    lcd_send_cmd(0x30);
-    HAL_Delay(1);
-    lcd_send_cmd(0x30);
-    HAL_Delay(10);
+    // Sequence to reset the LCD controller into a known state
+    uint8_t cmd;
     
-    lcd_send_cmd(0x20); // Cambio definitivo a modo 4 bits
+    cmd = 0x30 | lcd_backlight_val;
+    uint8_t data_t[2] = {cmd | PIN_EN, cmd}; 
+    HAL_I2C_Master_Transmit(&hi2c2, SLAVE_ADDRESS_LCD, data_t, 2, 100);
+    HAL_Delay(5);
+
+    HAL_I2C_Master_Transmit(&hi2c2, SLAVE_ADDRESS_LCD, data_t, 2, 100);
+    HAL_Delay(1);
+
+    HAL_I2C_Master_Transmit(&hi2c2, SLAVE_ADDRESS_LCD, data_t, 2, 100);
     HAL_Delay(10);
 
-    // Configuración operativa
-    lcd_send_cmd(0x28); // 2 líneas, 5x8 font
+    // Switch to 4-bit mode
+    cmd = 0x20 | lcd_backlight_val;
+    uint8_t data_4bit[2] = {cmd | PIN_EN, cmd};
+    HAL_I2C_Master_Transmit(&hi2c2, SLAVE_ADDRESS_LCD, data_4bit, 2, 100);
+    HAL_Delay(10);
+
+    // Standard functions because it is now in 4-bit mode
+    lcd_send_cmd(0x28); // 2 lines, 5x8 font
     lcd_send_cmd(0x08); // Display OFF
     lcd_send_cmd(0x01); // Clear Display
-    HAL_Delay(2);       // Comando Clear requiere más tiempo
+    HAL_Delay(2);
     lcd_send_cmd(0x06); // Entry mode
     lcd_send_cmd(0x0C); // Display ON, Cursor OFF
 }

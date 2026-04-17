@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "FreeRTOSConfig.h"
 #include "i2c.h"
 #include "icache.h"
 #include "tim.h"
@@ -154,6 +153,7 @@ int main(void)
   MX_ICACHE_Init();
   MX_TIM2_Init();
   MX_I2C1_Init();
+  MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
   /* USER CODE END 2 */
 
@@ -168,7 +168,6 @@ int main(void)
   {
     Error_Handler();
   }
-
 
   /* We should never get here as control is now taken by the scheduler */
 
@@ -188,7 +187,13 @@ int main(void)
       result = HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(i << 1), 3, 5);
       if (result == HAL_OK) {
           /* Si tienes redireccionado printf a UART, verás la dirección aquí */
-          printf("Dispositivo encontrado en: 0x%02X\r\n", i << 1);
+          printf("i2c1: 0x%02X\r\n", i);
+          /* Si usas el depurador, pon un breakpoint aquí para ver el valor de 'i' */
+      }
+      result = HAL_I2C_IsDeviceReady(&hi2c2, (uint16_t)(i << 1), 3, 5);
+      if (result == HAL_OK) {
+          /* Si tienes redireccionado printf a UART, verás la dirección aquí */
+          printf("i2c2: 0x%02X\r\n", i);
           /* Si usas el depurador, pon un breakpoint aquí para ver el valor de 'i' */
       }
   }
