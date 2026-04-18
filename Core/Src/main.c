@@ -33,51 +33,16 @@
 #include "stm32h5xx_nucleo.h"
 #include "task.h"
 #include <stdint.h>
-#include "bmp280.h"
-#include "lcd.h"
-#include "queue.h"
+#include "my_tasks.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef struct {
-  uint32_t frequencyHZ;
-  uint32_t durationMS;
-} buzzerParams_td;
-
-typedef enum {
-  BUZZ_VARIO = 0,
-  BUZZ_STARTUP = 1,
-  BUZZ_SHUTDOWN = 2
-} buzzerCommandType_td;
-
-typedef struct {
-  buzzerCommandType_td type;
-  buzzerParams_td vario; // Solo para comandos de tipo BUZZ_VARIO
-} buzzerQueueData_td;
-
-typedef enum {
-  DISPLAY_UPDATE = 0,
-  DISPLAY_CLEAR = 1,
-  DISPLAY_ON = 2,
-  DISPLAY_OFF = 3
-} displayCommandType_td;
-
-typedef struct {
-  bmp280_td sensorData;
-  float climb_rate;
-} displayUpdateData_td;
-
-typedef struct {
-  displayCommandType_td type;
-  displayUpdateData_td updateData; // Solo para comandos de tipo DISPLAY_UPDATE
-} displayQueueData_td;
-
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define TIM2_TICKS_PER_SEC 1000000
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -91,7 +56,7 @@ COM_InitTypeDef BspCOMInit;
 
 /* USER CODE BEGIN PV */
 TaskHandle_t variometer_task_handle = NULL;
-QueueHandle_t buzzerQueue, displayQueue;
+QueueHandle_t buzzerQueue = NULL, displayQueue = NULL;
 
 /* USER CODE END PV */
 
@@ -100,16 +65,6 @@ void SystemClock_Config(void);
 static void MPU_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
-
-// System functions
-void VariometerTask(void *pvParameters);
-void BuzzerTask(void *pvParameters);
-void DisplayTask(void *pvParameters);
-
-// Helper functions
-void Buzzer(buzzerParams_td buzzData);
-void PlayStartupTune();
-void PlaySwitchOffTune();
 
 // User button and LED functions
 void UserButtonEXTI_Callback();
@@ -319,268 +274,6 @@ void UserButtonEXTI_Callback(){
   vTaskNotifyGiveFromISR(variometer_task_handle, &xHigherPriorityTaskWoken);
   
   portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-}
-
-// VARIO CONFIGURATION PARAMETERS
-
-// Valor entre 0 y 1 para actualizar valores de presión.
-// Mayor alpha = más rápido pero más ruidoso.
-#define ALPHA 0.3f
-
-// Valor entre 0 y 1 para actualizar cambios de altitud.
-// Mayor beta = más rápido pero más ruidoso.
-#define BETA 0.5f
-
-// Umbrales de velocidad vertical para inciar sonidos. (m/s)
-#define CLIMB_RATE_THRESHOLD 0.2f
-#define DESCENT_RATE_THRESHOLD -0.3f
-
-// Valores en Hz para configurar tonos de ascenso/descenso.
-#define CLIMB_FREQ_BASE 720
-#define CLIMB_FREQ_SCALE 800
-
-#define DESCENT_FREQ_BASE 300
-#define DESCENT_FREQ_SCALE 100
-#define DESCENT_FREQ_MIN 150
-
-#define SEA_LEVEL_PRESSURE_PA (float)101400.0f
-
-/* MAIN VARIOMETER TASK
- * Switch on/off through user button.
- * Reads, filters and processes pressure data to estimate climb/descent rate.
- * Provides sound feedback through buzzer based on vertical speed.
- * Fully configurable through defined parameters avobe.
- */
-void VariometerTask(void *pvParameters){
-switched_off:
-
-  // Wait until it is turned on by button
-  ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-
-  // Send startup sound command to buzzer task
-  buzzerQueueData_td buzzQueueData = {.type = BUZZ_STARTUP, .vario = {0}};
-  xQueueSend(buzzerQueue, (void *)&buzzQueueData, 0);
-  
-  displayQueueData_td displayQueueData = {
-    .type = DISPLAY_ON
-  };
-  xQueueSend(displayQueue, (void *)&displayQueueData, 0);
-  
-  
-  bmp280_td bmp280;
-  uint64_t delayMS = 100, delay_climb = 100;
-  
-  float p0, pnew, p_prev, dp_dt, climb_rate, climb_rate_filt;
-  p0 = pnew = p_prev = dp_dt = climb_rate = climb_rate_filt = 0.0f;
-  
-  // Timing variables for main loop
-  float dt = 0.1f;
-  TickType_t lastTick;
-  
-  buzzerParams_td buzzData = {1000, 200};
-
-  // Stabilize initial pressure reading
-  for (uint16_t i = 0; i < 30; i++){
-    bmp280_read_data(&bmp280);
-    p0 += bmp280.pressure_Pa;
-    vTaskDelay(pdMS_TO_TICKS(100));
-  }
-
-  p0 /= 30.0f;
-  pnew = p0;
-  p_prev = p0;
-
-  lastTick = xTaskGetTickCount();
-  dt = 0.1; // Initial guess
-
-  // Main variometer function loop
-  while (1){
-    bmp280_read_data(&bmp280);
-
-    // Low-pass filter pressure
-    pnew = pnew * (1 - ALPHA) + bmp280.pressure_Pa * ALPHA;
-
-    // Pressure rate (Pa/s)
-    dp_dt = (pnew - p_prev) / dt;
-    p_prev = pnew;
-
-    // Convert to vertical speed (m/s) using 12Pa ~ 1m approximation 
-    climb_rate = -dp_dt * 0.083f;
-
-    // Low-pass filter climb rate
-    climb_rate_filt = climb_rate_filt * (1.0f - BETA) + climb_rate * BETA;
-
-    // SOUND FEEDBACK
-    if (climb_rate_filt >= CLIMB_RATE_THRESHOLD){
-      // Frequency increases with climb rate
-      buzzData.frequencyHZ = CLIMB_FREQ_BASE + (int)(climb_rate_filt * CLIMB_FREQ_SCALE);
-      // Short beep
-      buzzData.durationMS = 80;
-
-      // Faster beeps for stronger climb
-      delay_climb = 200 - (uint32_t)(climb_rate_filt * 80);
-
-      delayMS = delay_climb < 60 ? 60 : delay_climb;
-    }
-    else if (climb_rate_filt <= DESCENT_RATE_THRESHOLD){
-      // Lower pitch for descent
-      buzzData.frequencyHZ = DESCENT_FREQ_BASE + (int)(climb_rate_filt * DESCENT_FREQ_SCALE);
-      if (buzzData.frequencyHZ < DESCENT_FREQ_MIN) buzzData.frequencyHZ = DESCENT_FREQ_MIN;
-
-      buzzData.durationMS = 200;
-
-      delayMS = 300;
-    }
-    else{
-      // Dead zone, not enough climb or descent to trigger sound
-      delayMS = 100;
-    }
-
-    // Send sound command to buzzer task
-    if (climb_rate_filt >= CLIMB_RATE_THRESHOLD || climb_rate_filt <= DESCENT_RATE_THRESHOLD){
-      buzzQueueData.type = BUZZ_VARIO;
-      buzzQueueData.vario = buzzData;
-      xQueueSend(buzzerQueue, (void *)&buzzQueueData, 0);
-    }
-
-    // Always update display
-    displayQueueData.type = DISPLAY_UPDATE;
-    displayQueueData.updateData.sensorData = (bmp280_td){bmp280.temperature_C, pnew};
-    displayQueueData.updateData.climb_rate = climb_rate_filt;
-    xQueueSend(displayQueue, (void *)&displayQueueData, 0);
-
-    vTaskDelay(pdMS_TO_TICKS(delayMS));
-    
-    // Check if button was pressed to switch off
-    if (ulTaskNotifyTake(pdTRUE, 0) != 0){
-
-      buzzQueueData.type = BUZZ_SHUTDOWN;
-      xQueueSend(buzzerQueue, (void *)&buzzQueueData, 0);
-
-      displayQueueData.type = DISPLAY_OFF;
-      xQueueSend(displayQueue, (void *)&displayQueueData, 0);
-
-      goto switched_off;
-    }
-  
-    // Update dt for next iteration
-    dt = (xTaskGetTickCount() - lastTick) / (float)configTICK_RATE_HZ;
-    lastTick = xTaskGetTickCount();
-  
-  }
-}
-
-void Buzzer(buzzerParams_td buzzData){
-  uint32_t arr, pulse;
-
-  // Calculate ARR from frequency in HZ
-  arr = TIM2_TICKS_PER_SEC / buzzData.frequencyHZ;
-
-  // Set pulse to 50% arr for max volume
-  pulse = arr / 2;
-
-  // Set up timer for PWM output
-  __HAL_TIM_SET_AUTORELOAD(&htim2, arr);
-  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pulse);
-
-  // Beep at the specified frequency and duration
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-  vTaskDelay(pdMS_TO_TICKS(buzzData.durationMS));
-  HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
-}
-
-void PlayStartupTune(){
-  buzzerParams_td buzzData = {0};
-
-  for (int i = 0; i < 3; i++){
-    buzzData.frequencyHZ = 500 + i*200; // Ascending frequencies
-    buzzData.durationMS = 250 - i*50; // Decreasing duration
-
-    Buzzer(buzzData);
-    if (i == 2) break;
-    vTaskDelay(pdMS_TO_TICKS(20));
-  }
-}
-
-void PlaySwitchOffTune(){
-  buzzerParams_td buzzData = {0};
-
-  for (int i = 0; i < 4; i++){
-    buzzData.frequencyHZ = 1000 - i*200; // Descending frequencies
-    buzzData.durationMS = 100 + i*10; // Increasing duration
-
-    Buzzer(buzzData);
-    if (i == 3) break;
-    vTaskDelay(pdMS_TO_TICKS(20));
-  }
-}
-
-void BuzzerTask(void *pvParameters){
-  buzzerQueueData_td buzzQueueData;
-
-  while (1){
-    xQueueReceive(buzzerQueue, (void *)&buzzQueueData, portMAX_DELAY);
-
-    if (buzzQueueData.type == BUZZ_VARIO){
-      Buzzer(buzzQueueData.vario);
-    } else if (buzzQueueData.type == BUZZ_STARTUP){
-      PlayStartupTune();
-    } else if (buzzQueueData.type == BUZZ_SHUTDOWN){
-      PlaySwitchOffTune();
-    }
-  }
-}
-
-
-void DisplayTask(void *pvParameters) {
-  displayQueueData_td disData;
-  char temp[17]; 
-  float altitude, climb_rate;
-
-  while (1) {
-    xQueueReceive(displayQueue, (void *)&disData, portMAX_DELAY);
-      
-    switch (disData.type) {
-      
-      case DISPLAY_UPDATE:
-        altitude = bmp280_estimate_altitude(disData.updateData.sensorData, SEA_LEVEL_PRESSURE_PA);
-        climb_rate = disData.updateData.climb_rate;
-
-        // Line 1: Altitude
-        lcd_put_cur(0, 0);
-        snprintf(temp, sizeof(temp), "Alt: %.0fm", altitude);
-        lcd_printf("%-16s", temp);
-
-        // Line 2: Climb Rate
-        lcd_put_cur(1, 0);
-        snprintf(temp, sizeof(temp), "V: %+.1fm/s", climb_rate);
-        lcd_printf("%-16s", temp);
-        break;
-
-      case DISPLAY_CLEAR:
-        lcd_clear();
-        break;
-
-      case DISPLAY_ON:
-        lcd_on();
-        
-        lcd_put_cur(0, 0);
-        lcd_printf("%-16s", "Variometer ON!");
-        
-        lcd_put_cur(1, 0);
-        lcd_printf("%-16s", "Initializing...");
-        break;
-
-      case DISPLAY_OFF:
-        lcd_off();
-        break;
-
-      default:
-        // ignore
-        break;
-    }
-    
-  }
 }
 
 /* USER CODE END 4 */
