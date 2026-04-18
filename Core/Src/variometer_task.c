@@ -7,24 +7,24 @@ typedef struct {
     float dt;
 } varioState_td;
 
-static varioState_td state = {0};
+static varioState_td vState = {0};
 
 /*
  * Processes raw pressure readings into a filtered climb rate.
  */
-static void update_climb_rate(varioState_td *state, float raw_pressure) {
+static void update_climb_rate(varioState_td *vState, float raw_pressure) {
     // Low-pass filter pressure
-    state->pnew = state->pnew * (1.0f - ALPHA) + raw_pressure * ALPHA;
+    vState->pnew = vState->pnew * (1.0f - ALPHA) + raw_pressure * ALPHA;
 
     // Pressure rate (Pa/s) and conversion to m/s using 12Pa ~ 1m approximation
-    // SAFE: state->dt will never be 0 due to main loop logic
-    float dp_dt = (state->pnew - state->p_prev) / state->dt;
-    state->p_prev = state->pnew;
+    // SAFE: vState->dt will never be 0 due to main loop logic
+    float dp_dt = (vState->pnew - vState->p_prev) / vState->dt;
+    vState->p_prev = vState->pnew;
 
     float climb_rate = -dp_dt * 0.0833f;
 
     // Low-pass filter climb rate
-    state->climb_rate_filt = state->climb_rate_filt * (1.0f - BETA) + climb_rate * BETA;
+    vState->climb_rate_filt = vState->climb_rate_filt * (1.0f - BETA) + climb_rate * BETA;
 }
 
 /*
@@ -54,7 +54,7 @@ static uint32_t process_climb_rate(float climb_rate, buzzerParams_td *buzz) {
 }
 
 void VariometerTask(void *pvParameters) {
-    varioState_td state = {0};
+    varioState_td vState = {0};
     bmp280_td bmp280;
     buzzerQueueData_td buzzMsg = {0};
     displayQueueData_td dispMsg = {0};
@@ -78,29 +78,29 @@ switched_off:
         p_init += bmp280.pressure_Pa;
         vTaskDelay(pdMS_TO_TICKS(100));
     }
-    state.pnew = state.p_prev = p_init / 30.0f;
-    state.dt = 0.1f;
+    vState.pnew = vState.p_prev = p_init / 30.0f;
+    vState.dt = 0.1f;
     lastTick = xTaskGetTickCount();
 
     while (1) {
         bmp280_read_data(&bmp280);
 
         // Update climb rate based on latest pressure reading
-        update_climb_rate(&state, bmp280.pressure_Pa);
+        update_climb_rate(&vState, bmp280.pressure_Pa);
 
         // Set buzzer parameters and determine next loop delay based on climb rate
-        delayMS = process_climb_rate(state.climb_rate_filt, &buzzMsg.vario);
+        delayMS = process_climb_rate(vState.climb_rate_filt, &buzzMsg.vario);
 
         // Enqueue buzzer command if thresholds are exceeded
-        if (state.climb_rate_filt >= CLIMB_RATE_THRESHOLD || state.climb_rate_filt <= DESCENT_RATE_THRESHOLD) {
+        if (vState.climb_rate_filt >= CLIMB_RATE_THRESHOLD || vState.climb_rate_filt <= DESCENT_RATE_THRESHOLD) {
             buzzMsg.type = BUZZ_VARIO;
             xQueueSend(buzzerQueue, &buzzMsg, 0);
         }
 
         // Enqueue display update with the latest data
         dispMsg.type = DISPLAY_UPDATE;
-        dispMsg.updateData.sensorData = (bmp280_td){bmp280.temperature_C, state.pnew};
-        dispMsg.updateData.climb_rate = state.climb_rate_filt;
+        dispMsg.updateData.sensorData = (bmp280_td){bmp280.temperature_C, vState.pnew};
+        dispMsg.updateData.climb_rate = vState.climb_rate_filt;
         xQueueSend(displayQueue, &dispMsg, 0);
 
         // Check if user button was pressed to switch off
@@ -120,7 +120,7 @@ switched_off:
 
         // Timing update
         now = xTaskGetTickCount();
-        state.dt = (float)(now - lastTick) / (float)configTICK_RATE_HZ;
+        vState.dt = (float)(now - lastTick) / (float)configTICK_RATE_HZ;
         lastTick = now;
     }
 }
