@@ -26,13 +26,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "FreeRTOS.h"
-#include "portmacrocommon.h"
-#include "projdefs.h"
-#include "stm32h533xx.h"
-#include "stm32h5xx_hal_gpio.h"
-#include "stm32h5xx_nucleo.h"
 #include "task.h"
-#include <stdint.h>
 #include "my_tasks.h"
 /* USER CODE END Includes */
 
