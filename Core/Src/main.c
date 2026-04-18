@@ -36,7 +36,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define VARIO_PRIORITY 4
+#define BUZZER_PRIORITY 3
+#define DISPLAY_PRIORITY 2
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -169,15 +171,15 @@ int main(void)
   // Init LCD display
   lcd_init();
 
-  buzzerQueue = xQueueCreate(2, sizeof(buzzerQueueData_td));
-  displayQueue = xQueueCreate(2, sizeof(char[32]));
+  buzzerQueue = xQueueCreate(1, sizeof(buzzerQueueData_td));
+  displayQueue = xQueueCreate(1, sizeof(displayQueueData_td));
 
   xTaskCreate(
     VariometerTask,
     "Variometer Task",
     configMINIMAL_STACK_SIZE*4,
     (void*) NULL,
-    1,
+    VARIO_PRIORITY,
     (void*) &variometer_task_handle
   );
 
@@ -186,7 +188,7 @@ int main(void)
     "Buzzer Task",
     configMINIMAL_STACK_SIZE*2,
     (void*) NULL,
-    2,
+    BUZZER_PRIORITY,
     NULL
   );
 
@@ -195,7 +197,7 @@ int main(void)
     "Display Task",
     configMINIMAL_STACK_SIZE*2,
     (void*) NULL,
-    0,
+    DISPLAY_PRIORITY,
     NULL
   );
   

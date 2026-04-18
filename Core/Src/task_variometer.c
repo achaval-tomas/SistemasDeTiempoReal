@@ -69,10 +69,10 @@ switched_off:
 
     // Play start up tune and show initializing message on display
     buzzMsg.type = BUZZ_STARTUP;
-    xQueueSend(buzzerQueue, &buzzMsg, 0);
+    xQueueOverwrite(buzzerQueue, &buzzMsg);
     
     dispMsg.type = DISPLAY_ON;
-    xQueueSend(displayQueue, &dispMsg, 0);
+    xQueueOverwrite(displayQueue, &dispMsg);
 
     // Stabilize initial pressure reading (3 seconds)
     set_initial_pressure();
@@ -94,22 +94,22 @@ switched_off:
         if (vState.climb_rate_filt >= CLIMB_RATE_THRESHOLD || vState.climb_rate_filt <= DESCENT_RATE_THRESHOLD) {
             buzzMsg.type = BUZZ_VARIO;
             buzzMsg.vario_climb_rate = vState.climb_rate_filt;
-            xQueueSend(buzzerQueue, &buzzMsg, 0);
+            xQueueOverwrite(buzzerQueue, &buzzMsg);
         }
 
         // Enqueue display update with the latest data
         dispMsg.type = DISPLAY_UPDATE;
         dispMsg.updateData.sensorData = (bmp280_td){bmp280.temperature_C, vState.pnew};
         dispMsg.updateData.climb_rate = vState.climb_rate_filt;
-        xQueueSend(displayQueue, &dispMsg, 0);
+        xQueueOverwrite(displayQueue, &dispMsg);
 
         // Check if user button was pressed to switch off
         if (ulTaskNotifyTake(pdTRUE, 0) != 0) {
             // Send shutdown commands to buzzer and display tasks
             buzzMsg.type = BUZZ_SHUTDOWN;
-            xQueueSend(buzzerQueue, &buzzMsg, 0);
+            xQueueOverwrite(buzzerQueue, &buzzMsg);
             dispMsg.type = DISPLAY_OFF;
-            xQueueSend(displayQueue, &dispMsg, 0);
+            xQueueOverwrite(displayQueue, &dispMsg);
 
             goto switched_off;
         }
