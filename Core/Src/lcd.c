@@ -105,19 +105,17 @@ void lcd_printf(const char *fmt, ...) {
 
 void lcd_backlight(uint8_t state) {
     lcd_backlight_val = state ? BACKLIGHT : 0;
-    lcd_send_cmd(0x00); 
+    lcd_send_cmd(LCD_CMD_DISPLAY_CONTROL | LCD_DISPLAY_ON);
 }
 
 void lcd_off(void) {
-    lcd_clear();
-    lcd_backlight(0);
+    lcd_backlight_val = 0;
     lcd_send_cmd(LCD_CMD_DISPLAY_CONTROL | LCD_DISPLAY_OFF);
 }
 
 void lcd_on(void) {
-    lcd_backlight(1);
+    lcd_backlight_val = BACKLIGHT;
     lcd_send_cmd(LCD_CMD_DISPLAY_CONTROL | LCD_DISPLAY_ON);
-    lcd_clear();
 }
 
 void lcd_cursor(uint8_t mode) {
