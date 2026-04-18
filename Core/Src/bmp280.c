@@ -114,44 +114,43 @@ void bmp280_init(bmp280_settings_td settings){
 
 // Always use before pressure compensation to update t_fine
 float compensate_temperature_data(int32_t adc_T){
-  int32_t var1, var2, T;
-
-  var1 = ((((adc_T >> 3) - ((int32_t)calib.dig_t1 << 1))) * ((int32_t)calib.dig_t2)) >> 11;
-  var2 = (((((adc_T >> 4) - ((int32_t)calib.dig_t1)) *
-          ((adc_T >> 4) - ((int32_t)calib.dig_t1))) >> 12) *
-          ((int32_t)calib.dig_t3)) >> 14;
-
-  calib.t_fine = var1 + var2;
-  T = (calib.t_fine * 5 + 128) >> 8;
-
-  return T / 100.0f;
+  float var1, var2, T;
+    
+  var1 = (((float)adc_T) / 16384.0 - ((float)calib.dig_t1) / 1024.0) * ((float)calib.dig_t2);
+  
+  var2 = ((((float)adc_T) / 131072.0 - ((float)calib.dig_t1) / 8192.0) *
+          (((float)adc_T) / 131072.0 - ((float)calib.dig_t1) / 8192.0)) * ((float)calib.dig_t3);
+          
+  calib.t_fine = (int32_t)(var1 + var2);
+  T = (var1 + var2) / 5120.0;
+  
+  return T;
 }
 
 float compensate_pressure_data(int32_t adc_P){
-  uint32_t P;
-  int64_t var1, var2, p;
-
-  var1 = ((int64_t)calib.t_fine) - 128000;
-  var2 = var1 * var1 * (int64_t)calib.dig_p6;
-  var2 = var2 + ((var1 * (int64_t)calib.dig_p5) << 17);
-  var2 = var2 + (((int64_t)calib.dig_p4) << 35);
-  var1 = ((var1 * var1 * (int64_t)calib.dig_p3) >> 8) +
-        ((var1 * (int64_t)calib.dig_p2) << 12);
-  var1 = (((((int64_t)1) << 47) + var1)) * (int64_t)calib.dig_p1 >> 33;
-
-  if (var1 == 0) {
-      return 0; // avoid division by zero
+  float var1, var2, p;
+    
+  var1 = ((float)calib.t_fine / 2.0) - 64000.0;
+  var2 = var1 * var1 * ((float)calib.dig_p6) / 32768.0;
+  var2 = var2 + var1 * ((float)calib.dig_p5) * 2.0;
+  var2 = (var2 / 4.0) + (((float)calib.dig_p4) * 65536.0);
+  
+  var1 = (((float)calib.dig_p3) * var1 * var1 / 524288.0 + 
+          ((float)calib.dig_p2) * var1) / 524288.0;
+  var1 = (1.0 + var1 / 32768.0) * ((float)calib.dig_p1);
+  
+  if (var1 == 0.0) {
+      return 0; // avoid exception caused by division by zero
   }
-
-  p = 1048576 - adc_P;
-  p = (((p << 31) - var2) * 3125) / var1;
-  var1 = ((int64_t)calib.dig_p9 * (p >> 13) * (p >> 13)) >> 25;
-  var2 = ((int64_t)calib.dig_p8 * p) >> 19;
-  p = ((p + var1 + var2) >> 8) + ((int64_t)calib.dig_p7 << 4);
-  P = (uint32_t)p;
-
-  // Return pressure in Pa
-  return P / 256.0f;
+  
+  p = 1048576.0 - (float)adc_P;
+  p = (p - (var2 / 4096.0)) * 6250.0 / var1;
+  
+  var1 = ((float)calib.dig_p9) * p * p / 2147483648.0;
+  var2 = p * ((float)calib.dig_p8) / 32768.0;
+  p = p + (var1 + var2 + ((float)calib.dig_p7)) / 16.0;
+  
+  return p;
 }
 
 
