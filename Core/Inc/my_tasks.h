@@ -29,11 +29,11 @@ extern QueueHandle_t buzzerQueue, displayQueue;
 
 // Valores en Hz para configurar tonos de ascenso/descenso.
 #define CLIMB_FREQ_BASE 720
-#define CLIMB_FREQ_SCALE 800
+#define CLIMB_FREQ_SCALE 150
 
 #define DESCENT_FREQ_BASE 300
 #define DESCENT_FREQ_SCALE 100
-#define DESCENT_FREQ_MIN 150
+#define DESCENT_FREQ_MIN 100
 
 #define SEA_LEVEL_PRESSURE_PA (float)101400.0f
 
