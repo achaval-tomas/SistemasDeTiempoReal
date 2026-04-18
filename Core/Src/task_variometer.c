@@ -8,54 +8,57 @@ typedef struct {
 } varioState_td;
 
 static varioState_td vState = {0};
+static bmp280_td bmp280 = {0};
+
+/*
+ * Calculates a 30-sample average for a stable initial pressure value
+ */
+void set_initial_pressure() {
+    float p_init = 0.0f;
+    for (int i = 0; i < 30; i++) {
+        bmp280_read_data(&bmp280);
+        p_init += bmp280.pressure_Pa;
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+    vState.pnew = vState.p_prev = p_init / 30.0f;
+}
+
 
 /*
  * Processes raw pressure readings into a filtered climb rate.
  */
-static void update_climb_rate(varioState_td *vState, float raw_pressure) {
+static void update_climb_rate() {
     // Low-pass filter pressure
-    vState->pnew = vState->pnew * (1.0f - ALPHA) + raw_pressure * ALPHA;
+    vState.pnew = vState.pnew * (1.0f - ALPHA) + bmp280.pressure_Pa * ALPHA;
 
     // Pressure rate (Pa/s) and conversion to m/s using 12Pa ~ 1m approximation
-    // SAFE: vState->dt will never be 0 due to main loop logic
-    float dp_dt = (vState->pnew - vState->p_prev) / vState->dt;
-    vState->p_prev = vState->pnew;
+    // SAFE: vState.dt will never be 0 due to main loop logic
+    float dp_dt = (vState.pnew - vState.p_prev) / vState.dt;
+    vState.p_prev = vState.pnew;
 
     float climb_rate = -dp_dt * 0.0833f;
 
     // Low-pass filter climb rate
-    vState->climb_rate_filt = vState->climb_rate_filt * (1.0f - BETA) + climb_rate * BETA;
+    vState.climb_rate_filt = vState.climb_rate_filt * (1.0f - BETA) + climb_rate * BETA;
 }
 
 /*
  * Determines buzzer parameters and loop timing based on climb rate.
  */
-static uint32_t process_climb_rate(float climb_rate, buzzerParams_td *buzz) {
-    uint32_t next_delay;
+static uint32_t get_next_delay(float climb_rate) {
+    uint32_t next_delay = 100;
 
     if (climb_rate >= CLIMB_RATE_THRESHOLD) {
-        buzz->frequencyHZ = CLIMB_FREQ_BASE + (int)(climb_rate * CLIMB_FREQ_SCALE);
-        buzz->durationMS = 80;
-        
         uint32_t cadence = 200 - (uint32_t)(climb_rate * 80);
-        next_delay = (cadence < 60) ? 60 : cadence;
-    } 
-    else if (climb_rate <= DESCENT_RATE_THRESHOLD) {
-        int freq = DESCENT_FREQ_BASE + (int)(climb_rate * DESCENT_FREQ_SCALE);
-        buzz->frequencyHZ = (freq < DESCENT_FREQ_MIN) ? DESCENT_FREQ_MIN : freq;
-        buzz->durationMS = 200;
+        next_delay = (cadence < 80) ? 80 : cadence;
+    } else if (climb_rate <= DESCENT_RATE_THRESHOLD) {
         next_delay = 300;
-    } 
-    else {
-        next_delay = 100;
     }
 
     return next_delay;
 }
 
 void VariometerTask(void *pvParameters) {
-    varioState_td vState = {0};
-    bmp280_td bmp280;
     buzzerQueueData_td buzzMsg = {0};
     displayQueueData_td dispMsg = {0};
     TickType_t lastTick, now;
@@ -71,14 +74,10 @@ switched_off:
     dispMsg.type = DISPLAY_ON;
     xQueueSend(displayQueue, &dispMsg, 0);
 
-    // Stabilize initial pressure reading
-    float p_init = 0.0f;
-    for (int i = 0; i < 30; i++) {
-        bmp280_read_data(&bmp280);
-        p_init += bmp280.pressure_Pa;
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
-    vState.pnew = vState.p_prev = p_init / 30.0f;
+    // Stabilize initial pressure reading (3 seconds)
+    set_initial_pressure();
+
+    // Initial timing setup
     vState.dt = 0.1f;
     lastTick = xTaskGetTickCount();
 
@@ -86,14 +85,15 @@ switched_off:
         bmp280_read_data(&bmp280);
 
         // Update climb rate based on latest pressure reading
-        update_climb_rate(&vState, bmp280.pressure_Pa);
+        update_climb_rate();
 
         // Set buzzer parameters and determine next loop delay based on climb rate
-        delayMS = process_climb_rate(vState.climb_rate_filt, &buzzMsg.vario);
+        delayMS = get_next_delay(vState.climb_rate_filt);
 
         // Enqueue buzzer command if thresholds are exceeded
         if (vState.climb_rate_filt >= CLIMB_RATE_THRESHOLD || vState.climb_rate_filt <= DESCENT_RATE_THRESHOLD) {
             buzzMsg.type = BUZZ_VARIO;
+            buzzMsg.vario_climb_rate = vState.climb_rate_filt;
             xQueueSend(buzzerQueue, &buzzMsg, 0);
         }
 

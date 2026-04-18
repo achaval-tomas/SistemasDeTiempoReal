@@ -49,17 +49,38 @@ void PlaySwitchOffTune(){
 }
 
 void BuzzerTask(void *pvParameters){
-  buzzerQueueData_td buzzQueueData;
+  buzzerQueueData_td bqData;
+  buzzerParams_td buzzParams;
+  int freq;
 
   while (1){
-    xQueueReceive(buzzerQueue, (void *)&buzzQueueData, portMAX_DELAY);
+    xQueueReceive(buzzerQueue, (void *)&bqData, portMAX_DELAY);
 
-    if (buzzQueueData.type == BUZZ_VARIO){
-      Buzzer(buzzQueueData.vario);
-    } else if (buzzQueueData.type == BUZZ_STARTUP){
-      PlayStartupTune();
-    } else if (buzzQueueData.type == BUZZ_SHUTDOWN){
-      PlaySwitchOffTune();
+    switch(bqData.type){
+      case BUZZ_VARIO:
+        // Determine buzzer parameters based on climb rate
+        if (bqData.vario_climb_rate > 0) {
+          buzzParams.frequencyHZ = CLIMB_FREQ_BASE + (int)(bqData.vario_climb_rate * CLIMB_FREQ_SCALE);
+          buzzParams.durationMS = 80;
+        } else {
+            freq = DESCENT_FREQ_BASE + (int)(bqData.vario_climb_rate * DESCENT_FREQ_SCALE);
+            buzzParams.frequencyHZ = (freq < DESCENT_FREQ_MIN) ? DESCENT_FREQ_MIN : freq;
+            buzzParams.durationMS = 200;
+        }
+        Buzzer(buzzParams);
+        break;
+
+      case BUZZ_STARTUP:
+        PlayStartupTune();
+        break;
+
+      case BUZZ_SHUTDOWN:
+        PlaySwitchOffTune();
+        break;
+
+      default:
+        // ignore
+        break;
     }
   }
 }

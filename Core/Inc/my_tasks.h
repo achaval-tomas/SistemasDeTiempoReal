@@ -63,7 +63,7 @@ typedef enum {
 
 typedef struct {
   buzzerCommandType_td type;
-  buzzerParams_td vario; // Solo para comandos de tipo BUZZ_VARIO
+  float vario_climb_rate; // Solo para comandos de tipo BUZZ_VARIO
 } buzzerQueueData_td;
 
 /* BUZZER TASK
