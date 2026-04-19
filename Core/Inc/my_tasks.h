@@ -35,7 +35,7 @@ extern QueueHandle_t buzzerQueue, displayQueue;
 #define DESCENT_FREQ_SCALE 100
 #define DESCENT_FREQ_MIN 100
 
-#define SEA_LEVEL_PRESSURE_PA (float)100900.0f
+#define SEA_LEVEL_PRESSURE_PA (float)100930.0f
 
 /* MAIN VARIOMETER TASK
  * Switch on/off through user button.

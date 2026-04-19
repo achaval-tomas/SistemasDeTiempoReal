@@ -4,10 +4,12 @@
 #define TIM2_TICKS_PER_SEC 1000000
 
 void Buzzer(buzzerParams_td buzzData){
+  if (buzzData.frequencyHZ == 0 || buzzData.durationMS == 0) return;
+
   uint32_t arr, pulse;
 
   // Calculate ARR from frequency in HZ
-  arr = TIM2_TICKS_PER_SEC / buzzData.frequencyHZ;
+  arr = (TIM2_TICKS_PER_SEC / buzzData.frequencyHZ) - 1;
 
   // Set pulse to 50% arr for max volume
   pulse = arr / 2;
