@@ -16,8 +16,8 @@ extern QueueHandle_t buzzerQueue, displayQueue;
  */
 
  typedef struct {
-  float alpha; // Valor entre 0 y 1 para actualizar valores de presión. Mayor alpha = más rápido pero más ruidoso.
-  float beta; // Valor entre 0 y 1 para actualizar cambios de altitud. Mayor beta = más rápido pero más ruidoso.
+  float tau_p; // Tiempo de respuesta para el cambio de presion en segundos
+  float tau_c; // Tiempo de respuesta para el cambio de velocidad vertical en segundos
 
   float lift_threshold; // Umbral de velocidad vertical para inciar sonidos de ascenso en m/s
   float sink_threshold; // Umbral de velocidad vertical para inciar sonidos de descenso en m/s
@@ -32,8 +32,8 @@ extern QueueHandle_t buzzerQueue, displayQueue;
  } varioConfig_td;
 
  static const varioConfig_td defaultConfig = {
-  .alpha = 0.3f,
-  .beta = 0.5f,
+  .tau_p = 0.2f,
+  .tau_c = 0.1f,
   .lift_threshold = 0.2f,
   .sink_threshold = -0.3f,
   .lift_hz_base = 720,

@@ -27,26 +27,28 @@ void set_initial_pressure() {
 /*
  * Processes raw pressure readings into a filtered climb rate.
  */
-static void update_climb_rate() {
-    // Low-pass filter pressure
-    vState.pnew = vState.pnew * (1.0f - varioConfig.alpha) + bmp280.pressure_Pa * varioConfig.alpha;
+static void update_climb_rate(void) {
+    // Filter pressure (bigger step if more time has passed)
+    float alpha = vState.dt / (varioConfig.tau_p + vState.dt);
+    vState.pnew += alpha * (bmp280.pressure_Pa - vState.pnew);
 
-    // Pressure rate (Pa/s) and conversion to m/s using 12Pa ~ 1m approximation
-    // SAFE: vState.dt will never be 0 due to main loop logic
+    // Calculate rate of pressure change
     float dp_dt = (vState.pnew - vState.p_prev) / vState.dt;
     vState.p_prev = vState.pnew;
 
-    float climb_rate = -dp_dt * 0.0833f;
+    // Convert to climb rate
+    float climb_rate = -dp_dt * 0.083333f;
 
-    // Low-pass filter climb rate
-    vState.climb_rate_filt = vState.climb_rate_filt * (1.0f - varioConfig.beta) + climb_rate * varioConfig.beta;
+    // Filter climb rate (bigger step if more time has passed)
+    float beta = vState.dt / (varioConfig.tau_c + vState.dt);
+    vState.climb_rate_filt += beta * (climb_rate - vState.climb_rate_filt);
 }
 
 /*
  * Determines buzzer parameters and loop timing based on climb rate.
  */
 static uint32_t get_next_delay(float climb_rate) {
-    uint32_t next_delay = 100;
+    uint32_t next_delay = 200;
 
     if (climb_rate >= varioConfig.lift_threshold) {
         uint32_t cadence = 200 - (uint32_t)(climb_rate * 80);
@@ -62,7 +64,7 @@ void VariometerTask(void *pvParameters) {
     buzzerQueueData_td buzzMsg = {0};
     displayQueueData_td dispMsg = {0};
     TickType_t lastTick, now;
-    uint64_t delayMS = 100;
+    uint64_t delayMS = 200;
 
 switched_off:
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
