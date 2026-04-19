@@ -62,11 +62,11 @@ void BuzzerTask(void *pvParameters){
       case BUZZ_VARIO:
         // Determine buzzer parameters based on climb rate
         if (bqData.vario_climb_rate > 0) {
-          buzzParams.frequencyHZ = CLIMB_FREQ_BASE + (int)(bqData.vario_climb_rate * CLIMB_FREQ_SCALE);
+          buzzParams.frequencyHZ = varioConfig.lift_hz_base + (int)(bqData.vario_climb_rate * varioConfig.lift_hz_scale);
           buzzParams.durationMS = 80;
         } else {
-            freq = DESCENT_FREQ_BASE + (int)(bqData.vario_climb_rate * DESCENT_FREQ_SCALE);
-            buzzParams.frequencyHZ = (freq < DESCENT_FREQ_MIN) ? DESCENT_FREQ_MIN : freq;
+            freq = varioConfig.sink_hz_base + (int)(bqData.vario_climb_rate * varioConfig.sink_hz_scale);
+            buzzParams.frequencyHZ = (freq < varioConfig.sink_hz_min) ? varioConfig.sink_hz_min : freq;
             buzzParams.durationMS = 200;
         }
         Buzzer(buzzParams);

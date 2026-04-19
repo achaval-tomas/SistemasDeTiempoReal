@@ -15,27 +15,35 @@ extern QueueHandle_t buzzerQueue, displayQueue;
  *  VARIOMETER TASK DEFINITION AND CONFIGURATION
  */
 
-// Valor entre 0 y 1 para actualizar valores de presión.
-// Mayor alpha = más rápido pero más ruidoso.
-#define ALPHA 0.3f
+ typedef struct {
+  float alpha; // Valor entre 0 y 1 para actualizar valores de presión. Mayor alpha = más rápido pero más ruidoso.
+  float beta; // Valor entre 0 y 1 para actualizar cambios de altitud. Mayor beta = más rápido pero más ruidoso.
 
-// Valor entre 0 y 1 para actualizar cambios de altitud.
-// Mayor beta = más rápido pero más ruidoso.
-#define BETA 0.5f
+  float lift_threshold; // Umbral de velocidad vertical para inciar sonidos de ascenso en m/s
+  float sink_threshold; // Umbral de velocidad vertical para inciar sonidos de descenso en m/s
 
-// Umbrales de velocidad vertical para inciar sonidos. (m/s)
-#define CLIMB_RATE_THRESHOLD 0.2f
-#define DESCENT_RATE_THRESHOLD -0.3f
+  uint16_t lift_hz_base; // Frecuencia inicial de tono de acsenso en Hz
+  uint16_t lift_hz_scale; // Aumento de frecuencia por cada 0.1m/s de ascenso en Hz
+  uint16_t sink_hz_base; // Frecuencia inicial de tono de descenso en Hz
+  uint16_t sink_hz_scale; // Aumento de frecuencia por cada 0.1m/s de descenso en Hz
+  uint16_t sink_hz_min; // Frecuencia mínima de tono de descenso en Hz
 
-// Valores en Hz para configurar tonos de ascenso/descenso.
-#define CLIMB_FREQ_BASE 720
-#define CLIMB_FREQ_SCALE 150
+  float sealevel_pa; // Presion al nivel del mar en pascales
+ } varioConfig_td;
 
-#define DESCENT_FREQ_BASE 300
-#define DESCENT_FREQ_SCALE 100
-#define DESCENT_FREQ_MIN 100
-
-#define SEA_LEVEL_PRESSURE_PA (float)100930.0f
+ static const varioConfig_td defaultConfig = {
+  .alpha = 0.3f,
+  .beta = 0.5f,
+  .lift_threshold = 0.2f,
+  .sink_threshold = -0.3f,
+  .lift_hz_base = 720,
+  .lift_hz_scale = 150,
+  .sink_hz_base = 300,
+  .sink_hz_scale = 100,
+  .sink_hz_min = 100,
+  .sealevel_pa = 100930.0f
+ };
+ static varioConfig_td varioConfig = defaultConfig;
 
 /* MAIN VARIOMETER TASK
  * Switch on/off through user button.

@@ -12,7 +12,7 @@ void DisplayTask(void *pvParameters) {
     switch (disData.type) {
       
       case DISPLAY_UPDATE:
-        altitude = bmp280_estimate_altitude(disData.updateData.sensorData, SEA_LEVEL_PRESSURE_PA);
+        altitude = bmp280_estimate_altitude(disData.updateData.sensorData, varioConfig.sealevel_pa);
         climb_rate = disData.updateData.climb_rate;
         temperature = disData.updateData.sensorData.temperature_C;
 

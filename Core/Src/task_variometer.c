@@ -29,7 +29,7 @@ void set_initial_pressure() {
  */
 static void update_climb_rate() {
     // Low-pass filter pressure
-    vState.pnew = vState.pnew * (1.0f - ALPHA) + bmp280.pressure_Pa * ALPHA;
+    vState.pnew = vState.pnew * (1.0f - varioConfig.alpha) + bmp280.pressure_Pa * varioConfig.alpha;
 
     // Pressure rate (Pa/s) and conversion to m/s using 12Pa ~ 1m approximation
     // SAFE: vState.dt will never be 0 due to main loop logic
@@ -39,7 +39,7 @@ static void update_climb_rate() {
     float climb_rate = -dp_dt * 0.0833f;
 
     // Low-pass filter climb rate
-    vState.climb_rate_filt = vState.climb_rate_filt * (1.0f - BETA) + climb_rate * BETA;
+    vState.climb_rate_filt = vState.climb_rate_filt * (1.0f - varioConfig.beta) + climb_rate * varioConfig.beta;
 }
 
 /*
@@ -48,10 +48,10 @@ static void update_climb_rate() {
 static uint32_t get_next_delay(float climb_rate) {
     uint32_t next_delay = 100;
 
-    if (climb_rate >= CLIMB_RATE_THRESHOLD) {
+    if (climb_rate >= varioConfig.lift_threshold) {
         uint32_t cadence = 200 - (uint32_t)(climb_rate * 80);
         next_delay = (cadence < 80) ? 80 : cadence;
-    } else if (climb_rate <= DESCENT_RATE_THRESHOLD) {
+    } else if (climb_rate <= varioConfig.sink_threshold) {
         next_delay = 300;
     }
 
@@ -91,7 +91,7 @@ switched_off:
         delayMS = get_next_delay(vState.climb_rate_filt);
 
         // Enqueue buzzer command if thresholds are exceeded
-        if (vState.climb_rate_filt >= CLIMB_RATE_THRESHOLD || vState.climb_rate_filt <= DESCENT_RATE_THRESHOLD) {
+        if (vState.climb_rate_filt >= varioConfig.lift_threshold || vState.climb_rate_filt <= varioConfig.sink_threshold) {
             buzzMsg.type = BUZZ_VARIO;
             buzzMsg.vario_climb_rate = vState.climb_rate_filt;
             xQueueOverwrite(buzzerQueue, &buzzMsg);
