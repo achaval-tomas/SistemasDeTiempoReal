@@ -1,23 +1,27 @@
 #ifndef _MY_TASKS_H_
 #define _MY_TASKS_H_
 
-#include "stm32h5xx_hal.h"
+// Includes for all tasks and shared structures
 #include "FreeRTOS.h"
-#include "bmp280.h"
-#include "lcd.h"
 #include "queue.h"
-#include <stdint.h>
-#include <stdio.h>
+#include "bmp280.h"
 
-extern QueueHandle_t buzzerQueue, displayQueue;
+extern QueueHandle_t buzzerQueue, displayQueue, varioQueue;
+
+#define DT_ms 50
+
+/* 
+ *Task that reads and updates sensor data at a fixed rate
+ */
+void BMP280Task(void *pvParameters);
 
 /*
  *  VARIOMETER TASK DEFINITION AND CONFIGURATION
  */
 
  typedef struct {
-  float tau_p; // Tiempo de respuesta para el cambio de presion en segundos
-  float tau_c; // Tiempo de respuesta para el cambio de velocidad vertical en segundos
+  float alpha; // Coeficiente del filtro de presion, mas alto = mas rapido y ruidoso
+  float beta; // Coeficiente del filtro de velocidad, mas alto = mas rapido y ruidoso
 
   float lift_threshold; // Umbral de velocidad vertical para inciar sonidos de ascenso en m/s
   float sink_threshold; // Umbral de velocidad vertical para inciar sonidos de descenso en m/s
@@ -31,9 +35,9 @@ extern QueueHandle_t buzzerQueue, displayQueue;
   float sealevel_pa; // Presion al nivel del mar en pascales
  } varioConfig_td;
 
- static const varioConfig_td defaultConfig = {
-  .tau_p = 0.2f,
-  .tau_c = 0.1f,
+static const varioConfig_td defaultConfig = {
+  .alpha = 0.2f,
+  .beta = 0.15f,
   .lift_threshold = 0.2f,
   .sink_threshold = -0.3f,
   .lift_hz_base = 720,
@@ -41,9 +45,9 @@ extern QueueHandle_t buzzerQueue, displayQueue;
   .sink_hz_base = 300,
   .sink_hz_scale = 100,
   .sink_hz_min = 100,
-  .sealevel_pa = 100930.0f
+  .sealevel_pa = 101800.0f
  };
- static varioConfig_td varioConfig = defaultConfig;
+static varioConfig_td varioConfig = defaultConfig;
 
 /* MAIN VARIOMETER TASK
  * Switch on/off through user button.
@@ -85,10 +89,11 @@ void BuzzerTask(void *pvParameters);
  *   DISPLAY TASK DEFINITION AND COMMUNICATION STRUCTURES
  */
 typedef enum {
-  DISPLAY_UPDATE = 0,
-  DISPLAY_CLEAR = 1,
-  DISPLAY_ON = 2,
-  DISPLAY_OFF = 3
+  DISPLAY_UPDATE,
+  DISPLAY_VARIO_UPDATE,
+  DISPLAY_CLEAR,
+  DISPLAY_ON,
+  DISPLAY_OFF
 } displayCommandType_td;
 
 typedef struct {

@@ -3,6 +3,34 @@
 
 #define TIM2_TICKS_PER_SEC 1000000
 
+uint32_t get_buzz_frequency(float climb_rate) {
+    uint32_t freq = 0; // should never stay at 0
+
+    if (climb_rate >= varioConfig.lift_threshold) {
+        // Calculate frequency for lift
+        freq =  varioConfig.lift_hz_base + (uint32_t)(climb_rate * varioConfig.lift_hz_scale);
+    } else if (climb_rate <= varioConfig.sink_threshold) {
+        // Calculate frequency for sink
+        freq = varioConfig.sink_hz_base + (int)(climb_rate * varioConfig.sink_hz_scale);
+        freq = (freq < varioConfig.sink_hz_min) ? varioConfig.sink_hz_min : freq;
+    }
+
+    return freq;
+}
+
+uint32_t get_buzz_duration(float climb_rate) {
+    uint32_t next_delay = 0; // should never stay at 0
+
+    if (climb_rate >= varioConfig.lift_threshold) {
+        uint32_t cadence = 300 - (uint32_t)(climb_rate * 80);
+        next_delay = (cadence < 60) ? 60 : cadence;
+    } else if (climb_rate <= varioConfig.sink_threshold) {
+        next_delay = 300;
+    }
+
+    return next_delay;
+}
+
 void Buzzer(buzzerParams_td buzzData){
   if (buzzData.frequencyHZ == 0 || buzzData.durationMS == 0) return;
 
@@ -53,23 +81,19 @@ void PlaySwitchOffTune(){
 void BuzzerTask(void *pvParameters){
   buzzerQueueData_td bqData;
   buzzerParams_td buzzParams;
-  int freq;
 
   while (1){
     xQueueReceive(buzzerQueue, (void *)&bqData, portMAX_DELAY);
 
     switch(bqData.type){
       case BUZZ_VARIO:
-        // Determine buzzer parameters based on climb rate
-        if (bqData.vario_climb_rate > 0) {
-          buzzParams.frequencyHZ = varioConfig.lift_hz_base + (int)(bqData.vario_climb_rate * varioConfig.lift_hz_scale);
-          buzzParams.durationMS = 80;
-        } else {
-            freq = varioConfig.sink_hz_base + (int)(bqData.vario_climb_rate * varioConfig.sink_hz_scale);
-            buzzParams.frequencyHZ = (freq < varioConfig.sink_hz_min) ? varioConfig.sink_hz_min : freq;
-            buzzParams.durationMS = 200;
-        }
+        // Beep according to climb rate
+        buzzParams.frequencyHZ = get_buzz_frequency(bqData.vario_climb_rate);
+        buzzParams.durationMS = get_buzz_duration(bqData.vario_climb_rate);
         Buzzer(buzzParams);
+
+        // Short delay to avoid continuous buzzing
+        vTaskDelay(pdMS_TO_TICKS(50));
         break;
 
       case BUZZ_STARTUP:

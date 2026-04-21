@@ -1,8 +1,10 @@
-#include "lcd.h"
 #include "my_tasks.h"
+#include "lcd.h"
+#include <stdio.h>
 
 void DisplayTask(void *pvParameters) {
   displayQueueData_td disData;
+  TickType_t lastTick = xTaskGetTickCount();
   char temp[17]; 
   float altitude, climb_rate, temperature;
 
@@ -11,7 +13,7 @@ void DisplayTask(void *pvParameters) {
       
     switch (disData.type) {
       
-      case DISPLAY_UPDATE:
+      case DISPLAY_VARIO_UPDATE:
         altitude = bmp280_estimate_altitude(disData.updateData.sensorData, varioConfig.sealevel_pa);
         climb_rate = disData.updateData.climb_rate;
         temperature = disData.updateData.sensorData.temperature_C;
@@ -53,6 +55,8 @@ void DisplayTask(void *pvParameters) {
         // ignore
         break;
     }
-    
+
+    // Update at most every 200ms
+    vTaskDelayUntil(&lastTick, pdMS_TO_TICKS(200));
   }
 }

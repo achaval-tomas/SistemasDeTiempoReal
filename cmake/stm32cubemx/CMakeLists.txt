@@ -26,6 +26,7 @@ set(MX_Include_Dirs
 
 # STM32CubeMX generated application sources
 set(MX_Application_Src
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Src/task_sensor.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Src/task_display.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Src/task_buzzer.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Src/task_variometer.c
