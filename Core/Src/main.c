@@ -25,9 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "FreeRTOS.h"
-#include "task.h"
-#include "my_tasks.h"
+#include "main_app.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,9 +34,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define VARIO_PRIORITY 4
-#define BUZZER_PRIORITY 3
-#define DISPLAY_PRIORITY 2
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -51,8 +47,6 @@
 COM_InitTypeDef BspCOMInit;
 
 /* USER CODE BEGIN PV */
-TaskHandle_t variometer_task_handle = NULL;
-QueueHandle_t buzzerQueue = NULL, displayQueue = NULL;
 
 /* USER CODE END PV */
 
@@ -62,43 +56,6 @@ static void MPU_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 
-// User button and LED functions
-void UserButtonEXTI_Callback();
-void UserButtonEXTI_Init();
-void UserLed_Init();
-
-
-void UserLed_Init(){
-  GPIO_InitTypeDef  gpio_init_structure;
-
-  LED2_GPIO_CLK_ENABLE();
-
-  gpio_init_structure.Pin   = GPIO_PIN_5;
-  gpio_init_structure.Mode  = GPIO_MODE_OUTPUT_PP;
-  gpio_init_structure.Pull  = GPIO_NOPULL;
-  gpio_init_structure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-
-  HAL_GPIO_Init(GPIOA, &gpio_init_structure);
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-}
-
-void UserButtonEXTI_Init() {
-  BUTTON_USER_GPIO_CLK_ENABLE();
-
-  GPIO_InitTypeDef gpio_init_structure;
-  gpio_init_structure.Pin = GPIO_PIN_13;
-  gpio_init_structure.Pull = GPIO_PULLDOWN;
-  gpio_init_structure.Speed = GPIO_SPEED_FREQ_HIGH;
-  gpio_init_structure.Mode = GPIO_MODE_IT_RISING;
-
-  HAL_GPIO_Init(GPIOC, &gpio_init_structure);
-
-  (void)HAL_EXTI_GetHandle(hpb_exti, BUTTON_USER_EXTI_LINE);
-  (void)HAL_EXTI_RegisterCallback(hpb_exti, HAL_EXTI_COMMON_CB_ID, (void*) UserButtonEXTI_Callback);
-
-  HAL_NVIC_SetPriority(BUTTON_USER_EXTI_IRQ, BSP_BUTTON_USER_IT_PRIORITY, 0x00);
-  HAL_NVIC_EnableIRQ(BUTTON_USER_EXTI_IRQ);
-}
 
 /* USER CODE END PFP */
 
@@ -161,47 +118,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  UserButtonEXTI_Init();
-  UserLed_Init();
-  bmp280_init((bmp280_settings_td){
-    .config = 0b00010000, // standby 0.5ms, filter x16
-    .ctrl_meas = 0b01010111 // temp x2, pressure x16, normal mode
-  });
-
-  // Init LCD display
-  lcd_init();
-
-  buzzerQueue = xQueueCreate(1, sizeof(buzzerQueueData_td));
-  displayQueue = xQueueCreate(1, sizeof(displayQueueData_td));
-
-  xTaskCreate(
-    VariometerTask,
-    "Variometer Task",
-    configMINIMAL_STACK_SIZE*4,
-    (void*) NULL,
-    VARIO_PRIORITY,
-    (void*) &variometer_task_handle
-  );
-
-  xTaskCreate(
-    BuzzerTask,
-    "Buzzer Task",
-    configMINIMAL_STACK_SIZE*2,
-    (void*) NULL,
-    BUZZER_PRIORITY,
-    NULL
-  );
-
-  xTaskCreate(
-    DisplayTask,
-    "Display Task",
-    configMINIMAL_STACK_SIZE*2,
-    (void*) NULL,
-    DISPLAY_PRIORITY,
-    NULL
-  );
-  
-  vTaskStartScheduler();
+  start_variometer();
   /* We should never get here as control is now taken by the scheduler */
   while (1)
   {
@@ -263,14 +180,7 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void UserButtonEXTI_Callback(){
-  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-  // the only interrupt that can trigger this is the user button
-  vTaskNotifyGiveFromISR(variometer_task_handle, &xHigherPriorityTaskWoken);
-  
-  portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-}
 
 /* USER CODE END 4 */
 
