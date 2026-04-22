@@ -8,10 +8,11 @@
 
 extern QueueHandle_t buzzerQueue, displayQueue, varioQueue;
 
+// Time interval for variometer updates in milliseconds
 #define DT_ms 50
 
 /* 
- *Task that reads and updates sensor data at a fixed rate
+ *  Task that reads and updates sensor data at a fixed rate (DT_ms)
  */
 void BMP280Task(void *pvParameters);
 
@@ -36,8 +37,8 @@ void BMP280Task(void *pvParameters);
  } varioConfig_td;
 
 static const varioConfig_td defaultConfig = {
-  .alpha = 0.3f,
-  .beta = 0.1f,
+  .alpha = 0.1f,
+  .beta = 0.2f,
   .lift_threshold = 0.2f,
   .sink_threshold = -0.3f,
   .lift_hz_base = 720,
@@ -51,7 +52,7 @@ static varioConfig_td varioConfig = defaultConfig;
 
 /* MAIN VARIOMETER TASK
  * Switch on/off through user button.
- * Reads, filters and processes pressure data to estimate climb/descent rate.
+ * Filters and processes pressure data to estimate climb/descent rate.
  * Provides sound feedback through buzzer based on vertical speed.
  * Fully configurable through defined parameters avobe.
  */

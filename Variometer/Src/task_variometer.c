@@ -1,14 +1,63 @@
 #include "my_tasks.h"
 #include "bmp280.h"
 
+// Holds current state and Kalman filter data
 typedef struct {
-    float pnew;
-    float p_prev;
-    float climb_rate_filt;
+    float pressure;     // pressure in Pa
+    float dp_dt;        // pressure rate of change in Pa/s
+    float climb_rate;   // clibm/sink in m/s
+    float P[2][2];      // Matriz de covarianza de error
+    float Q[2];         // Ruido de proceso (ajustable)
+    float R;            // Ruido de medición (ajustable)
 } varioState_td;
 
-varioState_td vState = {0};
+varioState_td vState = {
+    .pressure = 0.0f, // must be initialized to an actual pressure reading
+    .dp_dt = 0.0f,
+    .climb_rate = 0.0f,
+    .P =
+    {
+    {1.0f, 0.0f},
+    {0.0f, 1.0f}
+    },
+    .Q = {0.01f, 0.01f},
+    .R = 0.25f
+};
 bmp280_td bmp280 = {0};
+
+void update_vState() {
+    static const float dt_s = (float)DT_ms / 1000.0f;
+
+    // Predicción de la próxima presión
+    vState.pressure = vState.pressure + (vState.dp_dt * dt_s);
+    // Asumimos que dp_dt es constante durante dt_s
+
+    // P = F*P*F' + Q
+    float P00 = vState.P[0][0] + dt_s * (vState.P[1][0] + vState.P[0][1] + dt_s * vState.P[1][1]) + vState.Q[0];
+    float P01 = vState.P[0][1] + dt_s * vState.P[1][1];
+    float P10 = vState.P[1][0] + dt_s * vState.P[1][1];
+    float P11 = vState.P[1][1] + vState.Q[1];
+
+    // ACTUALIZACIÓN (Ganancia de Kalman)
+    float S = P00 + vState.R;
+    float K0 = P00 / S;
+    float K1 = P10 / S;
+
+    // Corrección del estado (x = x + K*y)
+    float y = bmp280.pressure_Pa - vState.pressure;
+    vState.pressure += K0 * y;
+    vState.dp_dt += K1 * y;
+
+    // Conversion de Pa/s a m/s aproximando 1m ~ 12 Pa
+    vState.climb_rate = -vState.dp_dt * 0.08333f;
+
+    // Corrección de covarianza (P = (I - KH)*P)
+    vState.P[0][0] = (1.0f - K0) * P00;
+    vState.P[0][1] = (1.0f - K0) * P01;
+    vState.P[1][0] = P10 - (K1 * P00);
+    vState.P[1][1] = P11 - (K1 * P01);
+}
+
 
 /*
  * Calculates a 30-sample average for a stable initial pressure value
@@ -20,26 +69,8 @@ void set_initial_pressure() {
         p_init += bmp280.pressure_Pa;
         vTaskDelay(pdMS_TO_TICKS(100));
     }
-    vState.pnew = vState.p_prev = p_init / 30.0f;
-}
-
-
-/*
- * Processes raw pressure readings into a filtered climb rate.
- */
-void update_vState(void) {
-    // Filter pressure
-    vState.pnew = (1.0f - varioConfig.alpha) * vState.pnew + varioConfig.alpha * bmp280.pressure_Pa;
-
-    // Calculate rate of pressure change in Pa/s
-    float dp_dt = 1000.0f * ((vState.pnew - vState.p_prev) / (float)DT_ms);
-    vState.p_prev = vState.pnew;
-
-    // Convert to climb rate in m/s approximating 12Pa ~ 1m
-    float climb_rate = -dp_dt * 0.083333f;
-
-    // Filter climb rate
-    vState.climb_rate_filt = (1.0f - varioConfig.beta) * vState.climb_rate_filt + varioConfig.beta * climb_rate;
+    vState.pressure = p_init / 30.0f;
+    vState.dp_dt = 0.0f;
 }
 
 void VariometerTask(void *pvParameters) {
@@ -68,16 +99,16 @@ switched_off:
         update_vState();
 
         // Enqueue buzzer command if thresholds are exceeded
-        if (vState.climb_rate_filt >= varioConfig.lift_threshold || vState.climb_rate_filt <= varioConfig.sink_threshold) {
+        if (vState.climb_rate >= varioConfig.lift_threshold || vState.climb_rate <= varioConfig.sink_threshold) {
             buzzMsg.type = BUZZ_VARIO;
-            buzzMsg.vario_climb_rate = vState.climb_rate_filt;
+            buzzMsg.vario_climb_rate = vState.climb_rate;
             xQueueOverwrite(buzzerQueue, &buzzMsg);
         }
 
         // Enqueue display update with the latest data
         dispMsg.type = DISPLAY_VARIO_UPDATE;
-        dispMsg.updateData.sensorData = (bmp280_td){bmp280.temperature_C, vState.pnew};
-        dispMsg.updateData.climb_rate = vState.climb_rate_filt;
+        dispMsg.updateData.sensorData = (bmp280_td){bmp280.temperature_C, vState.pressure};
+        dispMsg.updateData.climb_rate = vState.climb_rate;
         xQueueOverwrite(displayQueue, &dispMsg);
 
         // Check if user button was pressed to switch off
