@@ -1,5 +1,6 @@
 #include "my_tasks.h"
 #include "lcd.h"
+#include <stdint.h>
 #include <stdio.h>
 
 void DisplayTask(void *pvParameters) {
@@ -19,18 +20,20 @@ void DisplayTask(void *pvParameters) {
         temperature = disData.updateData.sensorData.temperature_C;
 
         // Line 1: Altitude
-        lcd_put_cur(0, 0);
         snprintf(temp, sizeof(temp), "A: %.0fm", altitude);
-        lcd_printf("%-16s", temp);
+        lcd_printf_at(0, 0, "%-16s", temp);
 
-        lcd_put_cur(0, 12);
+        // Line 1 end: Temperature
         snprintf(temp, sizeof(temp), "%.0f\xDF""C", temperature);
-        lcd_printf("%4s", temp);
+        lcd_printf_at(0, 12, "%4s", temp);
 
         // Line 2: Climb Rate
-        lcd_put_cur(1, 0);
         snprintf(temp, sizeof(temp), "V: %+.1fm/s", climb_rate);
-        lcd_printf("%-16s", temp);
+        lcd_printf_at(1, 0, "%-16s", temp);
+
+        uint8_t arrow_char = (climb_rate >= 0.1f) ? CHAR_UP_ARROW : ((climb_rate <= -0.1f) ? CHAR_DOWN_ARROW : ' ');
+        lcd_printf_at(1, 11, "%c", arrow_char);
+
         break;
 
       case DISPLAY_CLEAR:
@@ -41,10 +44,10 @@ void DisplayTask(void *pvParameters) {
         lcd_on();
         
         lcd_put_cur(0, 0);
-        lcd_printf("%-16s", "Variometer ON!");
+        lcd_printf_at(0, 0, "%-16s", "Variometer ON!");
         
         lcd_put_cur(1, 0);
-        lcd_printf("%-16s", "Initializing...");
+        lcd_printf_at(1, 0, "%-16s", "Initializing...");
         break;
 
       case DISPLAY_OFF:
