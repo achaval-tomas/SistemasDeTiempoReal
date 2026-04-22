@@ -28,12 +28,10 @@ switched_off:
         // Receive the latest sensor data from the BMP280 task
         xQueueReceive(varioQueue, &sData, portMAX_DELAY);
 
-        // Enqueue buzzer command if thresholds are exceeded
-        if (sData.climb_rate_mps >= varioConfig.lift_threshold || sData.climb_rate_mps <= varioConfig.sink_threshold) {
-            buzzMsg.type = BUZZ_VARIO;
-            buzzMsg.vario_climb_rate = sData.climb_rate_mps;
-            xQueueOverwrite(buzzerQueue, &buzzMsg);
-        }
+        // Enqueue towards buzzer task with the latest data
+        buzzMsg.type = BUZZ_VARIO;
+        buzzMsg.vario_climb_rate = sData.climb_rate_mps;
+        xQueueOverwrite(buzzerQueue, &buzzMsg);
 
         // Enqueue display update with the latest data
         dispMsg.type = DISPLAY_VARIO_UPDATE;

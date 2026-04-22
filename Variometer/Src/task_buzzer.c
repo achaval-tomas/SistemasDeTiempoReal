@@ -4,7 +4,7 @@
 #define TIM2_TICKS_PER_SEC 1000000
 
 uint32_t get_buzz_frequency(float climb_rate) {
-    uint32_t freq = 0; // should never stay at 0
+    uint32_t freq = 0; // no freq if thresholds are not exceeded
 
     if (climb_rate >= varioConfig.lift_threshold) {
         // Calculate frequency for lift
@@ -19,19 +19,20 @@ uint32_t get_buzz_frequency(float climb_rate) {
 }
 
 uint32_t get_buzz_duration(float climb_rate) {
-    uint32_t next_delay = 0; // should never stay at 0
+    uint32_t duration = 0; // no duration if thresholds are not exceeded
 
     if (climb_rate >= varioConfig.lift_threshold) {
         uint32_t cadence = 400 - (uint32_t)(climb_rate * 100);
-        next_delay = (cadence < 50) ? 50 : cadence;
+        duration = (cadence < 50) ? 50 : cadence;
     } else if (climb_rate <= varioConfig.sink_threshold) {
-        next_delay = 500;
+        duration = 500;
     }
 
-    return next_delay;
+    return duration;
 }
 
 void Buzzer(buzzerParams_td buzzData){
+  // Skip invalid inputs
   if (buzzData.frequencyHZ == 0 || buzzData.durationMS == 0) return;
 
   uint32_t arr, pulse;
@@ -95,6 +96,7 @@ void BuzzerTask(void *pvParameters){
         // Beep according to climb rate
         buzzParams.frequencyHZ = get_buzz_frequency(bqData.vario_climb_rate);
         buzzParams.durationMS = get_buzz_duration(bqData.vario_climb_rate);
+        
         Buzzer(buzzParams);
 
         // Short delay after beep to avoid continuous buzzing
