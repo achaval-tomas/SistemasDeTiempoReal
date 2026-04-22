@@ -99,7 +99,7 @@ void BuzzerTask(void *pvParameters){
         
         Buzzer(buzzParams);
 
-        // Short delay after beep to avoid continuous buzzing
+        // Short delay after each beep to avoid continuous buzzing
         vTaskDelay(pdMS_TO_TICKS(50));
         break;
 

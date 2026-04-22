@@ -7,7 +7,6 @@ void VariometerTask(void *pvParameters) {
     sensorQueueData_td sData = {0};
     buzzerQueueData_td buzzMsg = {0};
     displayQueueData_td dispMsg = {0};
-    const TickType_t varioDelayTicks = pdMS_TO_TICKS(VARIO_DT_MS);
 
 switched_off:
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
@@ -19,10 +18,8 @@ switched_off:
     dispMsg.type = DISPLAY_STARTUP;
     xQueueOverwrite(displayQueue, &dispMsg);
 
-    TickType_t lastTick = xTaskGetTickCount();
-
     // Block to give display and buzzer time to initialize
-    vTaskDelayUntil(&lastTick, pdMS_TO_TICKS(3000));
+    vTaskDelay(pdMS_TO_TICKS(3000));
 
     while (1) {
         // Receive the latest sensor data from the BMP280 task
