@@ -77,7 +77,7 @@ void apply_kalman_filter(float new_pressure) {
     sState.P[1][1] = P11 - (K1 * P01);
 }
 
-// Update pressure and temperature data at a fixed rate
+// Update pressure and temperature data in varioQueue at a fixed rate
 void BMP280Task(void *pvParameters) {
     bmp280_init((bmp280_settings_td){
       .config = BMP_STANDBY_0_5ms | BMP_FILTER_OFF,

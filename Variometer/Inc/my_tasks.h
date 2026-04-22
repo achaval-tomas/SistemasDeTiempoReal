@@ -10,7 +10,6 @@ extern QueueHandle_t buzzerQueue, displayQueue, varioQueue;
 
 // Time interval for variometer updates in milliseconds
 #define SENSOR_DT_MS 20
-#define VARIO_DT_MS 50
 #define DISPLAY_DT_MS 200
 
 /* 

@@ -51,7 +51,5 @@ switched_off:
             goto switched_off;
         }
         
-        // Delay until next update cycle
-        vTaskDelayUntil(&lastTick, varioDelayTicks);
     }
 }
