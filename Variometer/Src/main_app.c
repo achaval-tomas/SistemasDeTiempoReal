@@ -17,16 +17,11 @@ QueueHandle_t buzzerQueue = NULL, displayQueue = NULL, varioQueue = NULL;
 void start_variometer(void){
     // Initialize peripherals
     UserButtonEXTI_Init();
-    bmp280_init((bmp280_settings_td){
-      .config = BMP_STANDBY_0_5ms | BMP_FILTER_OFF, // standby 0.5ms, filter OFF
-      .ctrl_meas = BMP_T_OSRS_2 | BMP_P_OSRS_16 | BMP_MODE_NORMAL // temp x2, pressure x16, normal mode
-    });
-    lcd_init();
 
     // Create queues for task communication, mostly used as mutexes
     buzzerQueue = xQueueCreate(1, sizeof(buzzerQueueData_td));
     displayQueue = xQueueCreate(1, sizeof(displayQueueData_td));
-    varioQueue = xQueueCreate(1, sizeof(bmp280_td));
+    varioQueue = xQueueCreate(1, sizeof(sensorQueueData_td));
 
     // Create tasks
     xTaskCreate(

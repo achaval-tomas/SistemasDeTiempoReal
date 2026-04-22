@@ -8,8 +8,12 @@ float absf(float x) {
 }
 
 void DisplayTask(void *pvParameters) {
+  lcd_init();
+  const TickType_t dislpayDT_ticks = pdMS_TO_TICKS(DISPLAY_DT_MS);
+  
   displayQueueData_td disData;
   TickType_t lastTick = xTaskGetTickCount();
+  
   char temp[17]; 
   float altitude, climb_rate, temperature;
 
@@ -19,11 +23,15 @@ void DisplayTask(void *pvParameters) {
     switch (disData.type) {
       
       case DISPLAY_VARIO_UPDATE:
-        altitude = bmp280_estimate_altitude(disData.updateData.sensorData, varioConfig.sealevel_pa);
+        altitude = bmp280_estimate_altitude(
+          disData.updateData.pressure_Pa,
+          disData.updateData.temperature_C,
+          varioConfig.sealevel_pa
+        );
         climb_rate = disData.updateData.climb_rate;
         if (absf(climb_rate) < 0.1f) climb_rate = 0.0f; // Deadzone for small climb rates
 
-        temperature = disData.updateData.sensorData.temperature_C;
+        temperature = disData.updateData.temperature_C;
 
         // Line 1: Altitude
         snprintf(temp, sizeof(temp), "A: %.0fm", altitude);
@@ -46,7 +54,7 @@ void DisplayTask(void *pvParameters) {
         lcd_clear();
         break;
 
-      case DISPLAY_ON:
+      case DISPLAY_STARTUP:
         lcd_on();
         
         lcd_put_cur(0, 0);
@@ -66,6 +74,6 @@ void DisplayTask(void *pvParameters) {
     }
 
     // Update at most every 200ms
-    vTaskDelayUntil(&lastTick, pdMS_TO_TICKS(200));
+    vTaskDelayUntil(&lastTick, dislpayDT_ticks);
   }
 }

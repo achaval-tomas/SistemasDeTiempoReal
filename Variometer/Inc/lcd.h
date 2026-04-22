@@ -7,7 +7,6 @@
 
 void lcd_init (void);   // initialize lcd
 
-// All functions below should be called from TASKS
 void lcd_off(void);
 void lcd_on(void);
 

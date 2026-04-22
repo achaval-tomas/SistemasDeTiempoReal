@@ -75,6 +75,6 @@ void bmp280_read_data(bmp280_td *bmp280);
 /*  
     Estimates altitude based on current pressure reading and sea level pressure.
 */
-float bmp280_estimate_altitude(bmp280_td bmp280, float seaLevelPressure_Pa);
+float bmp280_estimate_altitude(float pressure_Pa, float temperature_C, float seaLevelPressure_Pa);
 
 #endif /* __BMP280_H */

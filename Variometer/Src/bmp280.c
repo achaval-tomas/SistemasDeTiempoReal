@@ -167,12 +167,12 @@ void bmp280_read_data(bmp280_td *bmp280) {
   }
 
 
-float bmp280_estimate_altitude(bmp280_td bmp280, float seaLevelPressure_Pa) {
+float bmp280_estimate_altitude(float pressure_Pa, float temperature_C, float seaLevelPressure_Pa) {
   if (seaLevelPressure_Pa <= 0.0f){
     seaLevelPressure_Pa = 102000.0f; // Default value
   }
 
-  float absT = bmp280.temperature_C + 273.15f;
+  float absT = temperature_C + 273.15f;
 
-  return (287.05f * absT / 9.80665f) * logf(seaLevelPressure_Pa / bmp280.pressure_Pa);
+  return (287.05f * absT / 9.80665f) * logf(seaLevelPressure_Pa / pressure_Pa);
 }

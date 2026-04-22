@@ -9,11 +9,19 @@
 extern QueueHandle_t buzzerQueue, displayQueue, varioQueue;
 
 // Time interval for variometer updates in milliseconds
-#define DT_ms 50
+#define SENSOR_DT_MS 20
+#define VARIO_DT_MS 50
+#define DISPLAY_DT_MS 200
 
 /* 
  *  Task that reads and updates sensor data at a fixed rate (DT_ms)
  */
+typedef struct{
+    float pressure_Pa;
+    float temperature_C;
+    float climb_rate_mps;
+} sensorQueueData_td;
+
 void BMP280Task(void *pvParameters);
 
 /*
@@ -21,8 +29,8 @@ void BMP280Task(void *pvParameters);
  */
 
  typedef struct {
-  float alpha; // Coeficiente del filtro de presion, mas alto = mas rapido y ruidoso
-  float beta; // Coeficiente del filtro de velocidad, mas alto = mas rapido y ruidoso
+  float stability;   // Coeficiente de varianza de presion, mas alto = MENOS estable
+  float sensitivity; // Coeficiente del filtro de velocidad, mas alto = MAS reacción  
 
   float lift_threshold; // Umbral de velocidad vertical para inciar sonidos de ascenso en m/s
   float sink_threshold; // Umbral de velocidad vertical para inciar sonidos de descenso en m/s
@@ -37,8 +45,8 @@ void BMP280Task(void *pvParameters);
  } varioConfig_td;
 
 static const varioConfig_td defaultConfig = {
-  .alpha = 0.1f,
-  .beta = 0.2f,
+  .stability = 0.001f,
+  .sensitivity = 0.02f,
   .lift_threshold = 0.2f,
   .sink_threshold = -0.3f,
   .lift_hz_base = 720,
@@ -46,7 +54,7 @@ static const varioConfig_td defaultConfig = {
   .sink_hz_base = 300,
   .sink_hz_scale = 100,
   .sink_hz_min = 100,
-  .sealevel_pa = 102000.0f
+  .sealevel_pa = 102250.0f
  };
 static varioConfig_td varioConfig = defaultConfig;
 
@@ -93,12 +101,13 @@ typedef enum {
   DISPLAY_UPDATE,
   DISPLAY_VARIO_UPDATE,
   DISPLAY_CLEAR,
-  DISPLAY_ON,
+  DISPLAY_STARTUP,
   DISPLAY_OFF
 } displayCommandType_td;
 
 typedef struct {
-  bmp280_td sensorData;
+  float pressure_Pa;
+  float temperature_C;
   float climb_rate;
 } displayUpdateData_td;
 
