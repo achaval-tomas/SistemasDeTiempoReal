@@ -20,8 +20,12 @@ varioState_td vState = {
     {1.0f, 0.0f},
     {0.0f, 1.0f}
     },
-    .Q = {0.01f, 0.01f},
-    .R = 0.25f
+    .Q =
+    {
+        0.01f, // Expected pressure variance
+        0.01f  // Expected dp_dt variance
+    },
+    .R = 1.69f  // Sensor noise variance
 };
 bmp280_td bmp280 = {0};
 

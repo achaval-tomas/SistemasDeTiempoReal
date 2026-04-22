@@ -15,6 +15,28 @@
 
 #include <stdint.h>
 
+#define BMP_STANDBY_0_5ms  0b00000000
+#define BMP_STANDBY_62_5ms 0b00100000
+
+#define BMP_FILTER_OFF 0b00000000
+#define BMP_FILTER_2   0b00000100
+#define BMP_FILTER_4   0b00001000
+#define BMP_FILTER_8   0b00001100
+#define BMP_FILTER_16  0b00010000
+
+#define BMP_T_OSRS_1  0b00100000  // Temperature oversampling x1
+#define BMP_T_OSRS_2  0b01000000  // Temperature oversampling
+
+#define BMP_P_OSRS_1  0b00000100  // Pressure oversampling x1
+#define BMP_P_OSRS_2  0b00001000  // Pressure oversampling x2
+#define BMP_P_OSRS_4  0b00001100  // Pressure oversampling x4
+#define BMP_P_OSRS_8  0b00010000  // Pressure oversampling x8
+#define BMP_P_OSRS_16 0b00010100  // Pressure oversampling x16 
+
+#define BMP_MODE_SLEEP  0b00
+#define BMP_MODE_FORCED 0b01
+#define BMP_MODE_NORMAL 0b11
+
 /*
     Configuration settings for bmp280_init.
 */

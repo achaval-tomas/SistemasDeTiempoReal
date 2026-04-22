@@ -107,8 +107,8 @@ void bmp280_init(bmp280_settings_td settings){
 
   void bmp280_init_default(){
     bmp280_init((bmp280_settings_td){
-      .config = 0b00001000, // standby 0.5ms, filter x4
-      .ctrl_meas = 0b00110011 // temp x1, pressure x8, normal mode
+      .config = BMP_STANDBY_0_5ms | BMP_FILTER_OFF, // standby 0.5ms, filter OFF
+      .ctrl_meas = BMP_T_OSRS_1 | BMP_P_OSRS_16 | BMP_MODE_NORMAL // temp x1, pressure x16, normal mode
     });
   }
 
