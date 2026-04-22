@@ -45,7 +45,11 @@ void DisplayTask(void *pvParameters) {
         snprintf(temp, sizeof(temp), "V: %+.1fm/s", climb_rate);
         lcd_printf_at(1, 0, "%-16s", temp);
 
-        uint8_t arrow_char = (climb_rate >= 0.1f) ? CHAR_UP_ARROW : ((climb_rate <= -0.1f) ? CHAR_DOWN_ARROW : ' ');
+        uint8_t arrow_char = (
+             (climb_rate >= varioConfig.lift_threshold) ? CHAR_UP_ARROW
+          : ((climb_rate <= varioConfig.sink_threshold) ? CHAR_DOWN_ARROW 
+          : ' ')
+        );
         lcd_printf_at(1, 11, "%c", arrow_char);
 
         break;
