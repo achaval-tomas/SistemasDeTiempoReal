@@ -3,6 +3,10 @@
 #include <stdint.h>
 #include <stdio.h>
 
+float absf(float x) {
+    return (x < 0.0f) ? -x : x;
+}
+
 void DisplayTask(void *pvParameters) {
   displayQueueData_td disData;
   TickType_t lastTick = xTaskGetTickCount();
@@ -17,6 +21,8 @@ void DisplayTask(void *pvParameters) {
       case DISPLAY_VARIO_UPDATE:
         altitude = bmp280_estimate_altitude(disData.updateData.sensorData, varioConfig.sealevel_pa);
         climb_rate = disData.updateData.climb_rate;
+        if (absf(climb_rate) < 0.1f) climb_rate = 0.0f; // Deadzone for small climb rates
+
         temperature = disData.updateData.sensorData.temperature_C;
 
         // Line 1: Altitude
