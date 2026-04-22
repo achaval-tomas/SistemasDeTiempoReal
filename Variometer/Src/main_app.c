@@ -18,8 +18,8 @@ void start_variometer(void){
     // Initialize peripherals
     UserButtonEXTI_Init();
     bmp280_init((bmp280_settings_td){
-        .config = 0b00010000, // standby 0.5ms, filter x16
-        .ctrl_meas = 0b01010111 // temp x2, pressure x16, normal mode
+      .config = 0b00001000, // standby 0.5ms, filter x4
+      .ctrl_meas = 0b00110011 // temp x1, pressure x8, normal mode
     });
     lcd_init();
 

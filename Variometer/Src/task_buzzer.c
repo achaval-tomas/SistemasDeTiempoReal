@@ -22,10 +22,10 @@ uint32_t get_buzz_duration(float climb_rate) {
     uint32_t next_delay = 0; // should never stay at 0
 
     if (climb_rate >= varioConfig.lift_threshold) {
-        uint32_t cadence = 300 - (uint32_t)(climb_rate * 80);
+        uint32_t cadence = 500 - (uint32_t)(climb_rate * 110);
         next_delay = (cadence < 60) ? 60 : cadence;
     } else if (climb_rate <= varioConfig.sink_threshold) {
-        next_delay = 300;
+        next_delay = 500;
     }
 
     return next_delay;
@@ -40,7 +40,7 @@ void Buzzer(buzzerParams_td buzzData){
   arr = (TIM2_TICKS_PER_SEC / buzzData.frequencyHZ) - 1;
 
   // Set pulse to 50% arr for max volume
-  pulse = arr / 2;
+  pulse = (arr+1) / 2;
 
   // Set up timer for PWM output
   __HAL_TIM_SET_AUTORELOAD(&htim2, arr);

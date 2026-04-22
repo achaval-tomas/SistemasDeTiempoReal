@@ -27,17 +27,17 @@ void BMP280Task(void *pvParameters);
   float sink_threshold; // Umbral de velocidad vertical para inciar sonidos de descenso en m/s
 
   uint16_t lift_hz_base; // Frecuencia inicial de tono de acsenso en Hz
-  uint16_t lift_hz_scale; // Aumento de frecuencia por cada 0.1m/s de ascenso en Hz
+  uint16_t lift_hz_scale; // Aumento de frecuencia por cada 1m/s de ascenso en Hz
   uint16_t sink_hz_base; // Frecuencia inicial de tono de descenso en Hz
-  uint16_t sink_hz_scale; // Aumento de frecuencia por cada 0.1m/s de descenso en Hz
+  uint16_t sink_hz_scale; // Aumento de frecuencia por cada 1m/s de descenso en Hz
   uint16_t sink_hz_min; // Frecuencia mínima de tono de descenso en Hz
 
   float sealevel_pa; // Presion al nivel del mar en pascales
  } varioConfig_td;
 
 static const varioConfig_td defaultConfig = {
-  .alpha = 0.2f,
-  .beta = 0.15f,
+  .alpha = 0.3f,
+  .beta = 0.1f,
   .lift_threshold = 0.2f,
   .sink_threshold = -0.3f,
   .lift_hz_base = 720,
@@ -45,7 +45,7 @@ static const varioConfig_td defaultConfig = {
   .sink_hz_base = 300,
   .sink_hz_scale = 100,
   .sink_hz_min = 100,
-  .sealevel_pa = 101800.0f
+  .sealevel_pa = 102000.0f
  };
 static varioConfig_td varioConfig = defaultConfig;
 
