@@ -22,8 +22,8 @@ uint32_t get_buzz_duration(float climb_rate) {
     uint32_t next_delay = 0; // should never stay at 0
 
     if (climb_rate >= varioConfig.lift_threshold) {
-        uint32_t cadence = 500 - (uint32_t)(climb_rate * 110);
-        next_delay = (cadence < 60) ? 60 : cadence;
+        uint32_t cadence = 400 - (uint32_t)(climb_rate * 100);
+        next_delay = (cadence < 50) ? 50 : cadence;
     } else if (climb_rate <= varioConfig.sink_threshold) {
         next_delay = 500;
     }
@@ -47,9 +47,10 @@ void Buzzer(buzzerParams_td buzzData){
   __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pulse);
 
   // Beep at the specified frequency and duration
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   vTaskDelay(pdMS_TO_TICKS(buzzData.durationMS));
-  HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+
+  // Stop the buzzer by setting pulse to 0
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 0);
 }
 
 void PlayStartupTune(){
@@ -79,6 +80,10 @@ void PlaySwitchOffTune(){
 }
 
 void BuzzerTask(void *pvParameters){
+  // Start PWM signal at 0% "volume"
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 0);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
   buzzerQueueData_td bqData;
   buzzerParams_td buzzParams;
 
@@ -92,7 +97,7 @@ void BuzzerTask(void *pvParameters){
         buzzParams.durationMS = get_buzz_duration(bqData.vario_climb_rate);
         Buzzer(buzzParams);
 
-        // Short delay to avoid continuous buzzing
+        // Short delay after beep to avoid continuous buzzing
         vTaskDelay(pdMS_TO_TICKS(50));
         break;
 
