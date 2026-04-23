@@ -12,14 +12,16 @@ extern QueueHandle_t buzzerQueue, displayQueue, varioQueue;
 #define SENSOR_DT_MS 20
 #define DISPLAY_DT_MS 200
 
+typedef struct{
+  float pressure_Pa;
+  float temperature_C;
+  float climb_rate_mps;
+} genericSensorData_td;
+
 /* 
  *  Task that reads and updates sensor data at a fixed rate (DT_ms)
  */
-typedef struct{
-    float pressure_Pa;
-    float temperature_C;
-    float climb_rate_mps;
-} sensorQueueData_td;
+typedef genericSensorData_td sensorQueueData_td;
 
 void BMP280Task(void *pvParameters);
 
@@ -104,11 +106,7 @@ typedef enum {
   DISPLAY_OFF
 } displayCommandType_td;
 
-typedef struct {
-  float pressure_Pa;
-  float temperature_C;
-  float climb_rate;
-} displayUpdateData_td;
+typedef genericSensorData_td displayUpdateData_td;
 
 typedef struct {
   displayCommandType_td type;

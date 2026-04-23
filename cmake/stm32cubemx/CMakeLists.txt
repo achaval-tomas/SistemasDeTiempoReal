@@ -12,7 +12,13 @@ set(MX_Defines_Syms
 # STM32CubeMX generated include paths
 set(MX_Include_Dirs
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Inc
+
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Inc
+    
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/bmp280
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/lcd
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/button
+    
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Drivers/STM32H5xx_HAL_Driver/Inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Drivers/STM32H5xx_HAL_Driver/Inc/Legacy
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Drivers/BSP/STM32H5xx_Nucleo
@@ -26,14 +32,16 @@ set(MX_Include_Dirs
 
 # STM32CubeMX generated application sources
 set(MX_Application_Src
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Src/main_app.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Src/task_sensor.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Src/task_display.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Src/task_buzzer.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Src/task_variometer.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Src/bmp280.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Src/lcd.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Src/button.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Src/main_app.c
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/bmp280/bmp280.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/lcd/lcd.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/button/button.c
+
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/gpio.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/app_freertos.c

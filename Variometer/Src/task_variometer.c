@@ -32,9 +32,7 @@ switched_off:
 
         // Enqueue display update with the latest data
         dispMsg.type = DISPLAY_VARIO_UPDATE;
-        dispMsg.updateData.climb_rate = sData.climb_rate_mps;
-        dispMsg.updateData.pressure_Pa = sData.pressure_Pa;
-        dispMsg.updateData.temperature_C = sData.temperature_C;
+        dispMsg.updateData = (displayUpdateData_td)sData;
         xQueueOverwrite(displayQueue, &dispMsg);
 
         // Check if user button was pressed to switch off

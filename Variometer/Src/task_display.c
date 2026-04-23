@@ -28,7 +28,7 @@ void DisplayTask(void *pvParameters) {
           disData.updateData.temperature_C,
           varioConfig.sealevel_pa
         );
-        climb_rate = disData.updateData.climb_rate;
+        climb_rate = disData.updateData.climb_rate_mps;
         if (absf(climb_rate) < 0.1f) climb_rate = 0.0f; // Deadzone for small climb rates
 
         temperature = disData.updateData.temperature_C;
