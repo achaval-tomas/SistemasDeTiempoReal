@@ -16,11 +16,11 @@ Esta tarea lee el sensor en un intervalo constante, y carga el dato más recient
 
 
 - **VariometerTask:**
-Esta tarea tiene la segunda prioridad más alta. Se despierta al tomar un dato de BMP280Task, le aplica filtros para reducir ruido (Kalman Filter), y encola estos datos procesados a las demás tareas. Luego de cargar estos datos se bloquea hasta recibir un nuevo dato del sensor.
+Esta tarea tiene la tercer prioridad más alta. Se despierta al tomar un dato de BMP280Task, le aplica filtros para reducir ruido (Kalman Filter), y encola estos datos procesados a las demás tareas. Luego de cargar estos datos se bloquea hasta recibir un nuevo dato del sensor.
 
 
 - **BuzzerTask:**
-Tarea que permanece bloqueada hasta que VariometerTask encole un dato. Al despertarse, procesa el dato emitiendo los sonidos necesarios y vuelve a bloquearse. Tiene distintos modos (vario, on, off) que definen su comportamiento. Estos modos están definidos como comandos dentro del dato encolado. Tiene la tercer mayor prioridad debe ser la primera en despertarse luego de VariometerTask.
+Tarea que permanece bloqueada hasta que VariometerTask encole un dato. Al despertarse, procesa el dato emitiendo los sonidos necesarios y vuelve a bloquearse. Tiene distintos modos (vario, on, off) que definen su comportamiento. Estos modos están definidos como comandos dentro del dato encolado. Tiene la segunda mayor prioridad ya que debe reaccionar rápido a los eventos que VariometerTask encola.
 
 
 - **DisplayTask:**
