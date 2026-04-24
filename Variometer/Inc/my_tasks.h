@@ -4,7 +4,6 @@
 // Includes for all tasks and shared structures
 #include "FreeRTOS.h"
 #include "queue.h"
-#include "bmp280.h"
 
 extern QueueHandle_t buzzerQueue, displayQueue, varioQueue;
 

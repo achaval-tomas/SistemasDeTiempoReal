@@ -1,7 +1,5 @@
 #include "main_app.h"
 #include "FreeRTOS.h"
-#include "bmp280.h"
-#include "lcd.h"
 #include "task.h"
 #include "my_tasks.h"
 #include "button.h"

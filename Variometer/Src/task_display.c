@@ -2,6 +2,7 @@
 #include "lcd.h"
 #include <stdint.h>
 #include <stdio.h>
+#include "bmp280.h" // for altitude estimation service
 
 float absf(float x) {
     return (x < 0.0f) ? -x : x;
