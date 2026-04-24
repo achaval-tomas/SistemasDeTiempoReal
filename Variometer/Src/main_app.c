@@ -4,10 +4,10 @@
 #include "my_tasks.h"
 #include "button.h"
 
-#define SENSOR_PRIORITY 5
-#define VARIO_PRIORITY 4
-#define BUZZER_PRIORITY 3
-#define DISPLAY_PRIORITY 2
+#define SENSOR_PRIORITY  5  // Must be able to run at a fixed rate
+#define BUZZER_PRIORITY  4  // Must wake up as soon as data is enqueued
+#define VARIO_PRIORITY   3  // Wakes up when SENSOR sleeps
+#define DISPLAY_PRIORITY 2  // Response time not as important
 
 TaskHandle_t variometer_task_handle = NULL;
 QueueHandle_t buzzerQueue = NULL, displayQueue = NULL, varioQueue = NULL;

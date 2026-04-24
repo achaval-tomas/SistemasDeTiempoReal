@@ -49,13 +49,15 @@ static const varioConfig_td defaultConfig = {
   .sensitivity = 0.02f,
   .lift_threshold = 0.2f,
   .sink_threshold = -0.3f,
-  .lift_hz_base = 720,
-  .lift_hz_scale = 150,
+  .lift_hz_base = 800,
+  .lift_hz_scale = 100,
   .sink_hz_base = 300,
   .sink_hz_scale = 100,
   .sink_hz_min = 100,
   .sealevel_pa = 102250.0f
  };
+
+// This configuration is shared by all tasks
 static varioConfig_td varioConfig = defaultConfig;
 
 /* MAIN VARIOMETER TASK

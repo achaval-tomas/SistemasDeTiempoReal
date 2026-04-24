@@ -1,18 +1,25 @@
 #include "my_tasks.h"
 #include "tim.h"
+#include <stdint.h>
 
 #define TIM2_TICKS_PER_SEC 1000000
 
 uint32_t get_buzz_frequency(float climb_rate) {
     uint32_t freq = 0; // no freq if thresholds are not exceeded
+    float delta_rate = 0;
 
+    // Calculate lift/sink frequency adjusted by distance from thresholds
     if (climb_rate >= varioConfig.lift_threshold) {
-        // Calculate frequency for lift
-        freq =  varioConfig.lift_hz_base + (uint32_t)(climb_rate * varioConfig.lift_hz_scale);
+
+        delta_rate = climb_rate - varioConfig.lift_threshold;
+        freq =  varioConfig.lift_hz_base + (uint32_t)(delta_rate * varioConfig.lift_hz_scale);
+
     } else if (climb_rate <= varioConfig.sink_threshold) {
-        // Calculate frequency for sink
-        freq = varioConfig.sink_hz_base + (int)(climb_rate * varioConfig.sink_hz_scale);
+
+        delta_rate = varioConfig.sink_threshold - climb_rate;
+        freq = varioConfig.sink_hz_base + (int)(delta_rate * varioConfig.sink_hz_scale);
         freq = (freq < varioConfig.sink_hz_min) ? varioConfig.sink_hz_min : freq;
+
     }
 
     return freq;
@@ -22,13 +29,27 @@ uint32_t get_buzz_duration(float climb_rate) {
     uint32_t duration = 0; // no duration if thresholds are not exceeded
 
     if (climb_rate >= varioConfig.lift_threshold) {
-        uint32_t cadence = 400 - (uint32_t)(climb_rate * 100);
-        duration = (cadence < 50) ? 50 : cadence;
+        duration = 400 - (uint32_t)((climb_rate - varioConfig.lift_threshold) * 100);
+        duration = (duration < 50) ? 50 : duration;
     } else if (climb_rate <= varioConfig.sink_threshold) {
         duration = 500;
     }
 
     return duration;
+}
+
+uint32_t get_buzz_silence(float climb_rate){
+    uint32_t silence_ms = 50; // standard value for silence between beeps
+
+    if (climb_rate >= varioConfig.lift_threshold) {
+        // increasingly shorter delays during steep climbs
+        silence_ms = 50 - (uint32_t)((climb_rate-varioConfig.lift_threshold) * 10);
+        silence_ms = (silence_ms < 10) ? 10 : silence_ms;
+    } else if (climb_rate <= varioConfig.sink_threshold) {
+        silence_ms = 100;
+    }
+
+    return silence_ms;
 }
 
 void Buzzer(buzzerParams_td buzzData){
@@ -88,6 +109,8 @@ void BuzzerTask(void *pvParameters){
   buzzerQueueData_td bqData;
   buzzerParams_td buzzParams;
 
+  uint32_t silenceMS = 50;
+
   while (1){
     xQueueReceive(buzzerQueue, (void *)&bqData, portMAX_DELAY);
 
@@ -99,8 +122,9 @@ void BuzzerTask(void *pvParameters){
         
         Buzzer(buzzParams);
 
-        // Short delay after each beep to avoid continuous buzzing
-        vTaskDelay(pdMS_TO_TICKS(50));
+        // Dynamic delay between beeps
+        silenceMS = get_buzz_silence(bqData.vario_climb_rate);
+        vTaskDelay(pdMS_TO_TICKS(silenceMS));
         break;
 
       case BUZZ_STARTUP:
