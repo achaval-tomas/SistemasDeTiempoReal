@@ -2,14 +2,19 @@
 #include "portmacrocommon.h"
 #include "projdefs.h"
 
+extern TaskHandle_t sensor_task_handle;
 
 void VariometerTask(void *pvParameters) {
     sensorQueueData_td sData = {0};
     buzzerQueueData_td buzzMsg = {0};
     displayQueueData_td dispMsg = {0};
 
-switched_off:
+variometer_off:
+    // Wake up from button press notification
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+    // Notify sensor task to wake up
+    xTaskNotifyGive(sensor_task_handle);
 
     // Play start up tune and show initializing message on display
     buzzMsg.type = BUZZ_STARTUP;
@@ -17,9 +22,6 @@ switched_off:
     
     dispMsg.type = DISPLAY_STARTUP;
     xQueueOverwrite(displayQueue, &dispMsg);
-
-    // Block to give display and buzzer time to initialize
-    vTaskDelay(pdMS_TO_TICKS(3000));
 
     while (1) {
         // Receive the latest sensor data from the BMP280 task
@@ -42,8 +44,11 @@ switched_off:
             xQueueOverwrite(buzzerQueue, &buzzMsg);
             dispMsg.type = DISPLAY_OFF;
             xQueueOverwrite(displayQueue, &dispMsg);
+            
+            // Notify sensor task to sleep
+            xTaskNotifyGive(sensor_task_handle);
 
-            goto switched_off;
+            goto variometer_off;
         }
         
     }

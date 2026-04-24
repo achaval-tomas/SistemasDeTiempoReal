@@ -9,7 +9,7 @@
 #define VARIO_PRIORITY   3  // Wakes up when SENSOR sleeps
 #define DISPLAY_PRIORITY 2  // Response time not as important
 
-TaskHandle_t variometer_task_handle = NULL;
+TaskHandle_t variometer_task_handle = NULL, sensor_task_handle = NULL;
 QueueHandle_t buzzerQueue = NULL, displayQueue = NULL, varioQueue = NULL;
 
 void start_variometer(void){
@@ -28,7 +28,7 @@ void start_variometer(void){
         configMINIMAL_STACK_SIZE*4,
         (void*) NULL,
         SENSOR_PRIORITY,
-        (void*) NULL
+        (void*) &sensor_task_handle
     );
 
     xTaskCreate(

@@ -1,5 +1,7 @@
 #include "my_tasks.h"
 #include "bmp280.h"
+#include "portmacrocommon.h"
+#include "projdefs.h"
 
 // Holds current state and Kalman filter data
 typedef struct {
@@ -84,6 +86,10 @@ void BMP280Task(void *pvParameters) {
       .ctrl_meas = BMP_T_OSRS_1 | BMP_P_OSRS_8 | BMP_MODE_NORMAL
     });
 
+sensor_off:
+    // Wait until wake-up notification is received from variometer
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
     bmp280_td bmp280 = {0};
     sensorQueueData_td sensorQueueData = {0};
     
@@ -104,6 +110,10 @@ void BMP280Task(void *pvParameters) {
         xQueueOverwrite(varioQueue, &sensorQueueData);
 
         vTaskDelayUntil(&lastTick, sensorDelayTicks);
+
+        if (ulTaskNotifyTake(pdTRUE, 0) != 0) {
+            goto sensor_off;
+        }
     }
     
 }
