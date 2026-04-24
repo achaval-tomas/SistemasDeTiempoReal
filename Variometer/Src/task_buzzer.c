@@ -39,7 +39,7 @@ uint32_t get_buzz_duration(float climb_rate) {
 }
 
 uint32_t get_buzz_silence(float climb_rate){
-    uint32_t silence_ms = 50; // standard value for silence between beeps
+    uint32_t silence_ms = 0; // skip beep-to-beep delay when there is no beep
 
     if (climb_rate >= varioConfig.lift_threshold) {
         // increasingly shorter delays during steep climbs
@@ -109,7 +109,7 @@ void BuzzerTask(void *pvParameters){
   buzzerQueueData_td bqData;
   buzzerParams_td buzzParams;
 
-  uint32_t silenceMS = 50;
+  uint32_t silenceMS = 0;
 
   while (1){
     xQueueReceive(buzzerQueue, (void *)&bqData, portMAX_DELAY);
@@ -124,7 +124,7 @@ void BuzzerTask(void *pvParameters){
 
         // Dynamic delay between beeps
         silenceMS = get_buzz_silence(bqData.vario_climb_rate);
-        vTaskDelay(pdMS_TO_TICKS(silenceMS));
+        if (silenceMS) vTaskDelay(pdMS_TO_TICKS(silenceMS));
         break;
 
       case BUZZ_STARTUP:
