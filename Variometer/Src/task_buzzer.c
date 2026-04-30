@@ -6,20 +6,23 @@
 
 uint32_t get_buzz_frequency(float climb_rate) {
     uint32_t freq = 0; // no freq if thresholds are not exceeded
-    float delta_rate = 0;
+    float delta_rate = 0.0f;
 
     // Calculate lift/sink frequency adjusted by distance from thresholds
     if (climb_rate >= varioConfig.lift_threshold) {
 
         delta_rate = climb_rate - varioConfig.lift_threshold;
-        freq =  varioConfig.lift_hz_base + (uint32_t)(delta_rate * varioConfig.lift_hz_scale);
+        freq = (uint32_t)(varioConfig.lift_hz_base + (delta_rate * varioConfig.lift_hz_scale));
 
     } else if (climb_rate <= varioConfig.sink_threshold) {
 
         delta_rate = varioConfig.sink_threshold - climb_rate;
-        freq = varioConfig.sink_hz_base + (int)(delta_rate * varioConfig.sink_hz_scale);
-        freq = (freq < varioConfig.sink_hz_min) ? varioConfig.sink_hz_min : freq;
-
+        freq = (uint32_t)(varioConfig.sink_hz_base + (delta_rate * varioConfig.sink_hz_scale));
+        
+        // Clamp to minimum frequency
+        if (freq < (uint32_t)varioConfig.sink_hz_min) {
+            freq = (uint32_t)varioConfig.sink_hz_min;
+        }
     }
 
     return freq;

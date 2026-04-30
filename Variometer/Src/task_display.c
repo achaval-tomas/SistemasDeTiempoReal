@@ -22,29 +22,41 @@ void DisplayTask(void *pvParameters) {
     xQueueReceive(displayQueue, (void *)&disData, portMAX_DELAY);
       
     switch (disData.type) {
+      case DISPLAY_ON:
+        lcd_on();
+        break;
+
+      case DISPLAY_UPDATE_MENU:
+      // update the 4 rows according to menu data
+      for (uint8_t i = 0; i<4; ++i)
+        lcd_printf_at(i, 0, "%-20s", disData.menuData.lines[i]);
+    
+        lcd_cursor(2);
+        lcd_put_cur(disData.menuData.selectedLine, 0);
+      break;
       
-      case DISPLAY_VARIO_UPDATE:
+      case DISPLAY_UPDATE_VARIO:
         altitude = bmp280_estimate_altitude(
-          disData.updateData.pressure_Pa,
-          disData.updateData.temperature_C,
+          disData.varioData.pressure_Pa,
+          disData.varioData.temperature_C,
           varioConfig.sealevel_pa
         );
-        climb_rate = disData.updateData.climb_rate_mps;
+        climb_rate = disData.varioData.climb_rate_mps;
         if (absf(climb_rate) < 0.1f) climb_rate = 0.0f; // Deadzone for small climb rates
 
-        temperature = disData.updateData.temperature_C;
+        temperature = disData.varioData.temperature_C;
 
         // Line 1: Altitude
         snprintf(temp, sizeof(temp), "A: %.0fm", altitude);
-        lcd_printf_at(0, 0, "%-16s", temp);
+        lcd_printf_at(0, 0, "%-20s", temp);
 
         // Line 1 end: Temperature
         snprintf(temp, sizeof(temp), "%.0f\xDF""C", temperature);
-        lcd_printf_at(0, 12, "%4s", temp);
+        lcd_printf_at(0, 16, "%4s", temp);
 
         // Line 2: Climb Rate
         snprintf(temp, sizeof(temp), "V: %+.1fm/s", climb_rate);
-        lcd_printf_at(1, 0, "%-16s", temp);
+        lcd_printf_at(1, 0, "%-20s", temp);
 
         uint8_t arrow_char = (
              (climb_rate >= varioConfig.lift_threshold) ? CHAR_UP_ARROW
@@ -59,14 +71,12 @@ void DisplayTask(void *pvParameters) {
         lcd_clear();
         break;
 
-      case DISPLAY_STARTUP:
-        lcd_on();
-        
+      case DISPLAY_START_FLIGHT:
         lcd_put_cur(0, 0);
-        lcd_printf_at(0, 0, "%-16s", "Variometer ON!");
+        lcd_printf_at(0, 0, "%-20s", "INICIANDO VUELO");
         
         lcd_put_cur(1, 0);
-        lcd_printf_at(1, 0, "%-16s", "Initializing...");
+        lcd_printf_at(1, 0, "%-20s", "Calibrando sensores...");
         break;
 
       case DISPLAY_OFF:

@@ -33,7 +33,8 @@ typedef enum {
 #define LCD_CURSOR_OFF      0x00
 #define LCD_BLINK_ON        0x01
 #define LCD_BLINK_OFF       0x00
-#define LCD_4BIT_MODE       0x28
+// 0x28 -> 4-bit mode, 2 lines (even for 4-line displays), 5x8 font
+#define LCD_4BIT_MODE       0x28 
 
 static uint8_t lcd_backlight_val = 0; // Initialized OFF
 
@@ -56,6 +57,18 @@ void lcd_send_cmd(uint8_t cmd) {
 
 void lcd_send_data(uint8_t data) {
     lcd_send_internal(data, PIN_RS);
+}
+
+// Saves a custom character to 1 of 8 CGRAM slots (locations 8-15)
+void lcd_create_custom_char(uint8_t location, const uint8_t charmap[]) {
+    // Convert 8-15 to 0-7 for proper addressing
+    uint8_t hardware_slot = (uint8_t)location & 0x07; 
+    
+    lcd_send_cmd(LCD_CMD_SET_CGRAM_ADDR | (hardware_slot << 3));
+    for (int i = 0; i < 8; i++) {
+        lcd_send_data(charmap[i]);
+    }
+    lcd_send_cmd(LCD_CMD_SET_DDRAM_ADDR); 
 }
 
 void lcd_load_custom_characters() {
@@ -91,12 +104,32 @@ void lcd_init(void) {
 }
 
 void lcd_send_string(char *str) {
-    while (*str) lcd_send_data(*str++);
+    while (*str) lcd_send_data((uint8_t)(*str++));
 }
 
 void lcd_put_cur(uint8_t row, uint8_t col) {
-    uint8_t pos = (row == 0) ? (LCD_CMD_SET_DDRAM_ADDR | col) : (0xC0 | col);
-    lcd_send_cmd(pos);
+    uint8_t pos;
+    
+    // Calculate DDRAM address based on row mapping for 20x4
+    switch (row) {
+        case 0:
+            pos = 0x00 + col;
+            break;
+        case 1:
+            pos = 0x40 + col;
+            break;
+        case 2:
+            pos = 0x14 + col;
+            break;
+        case 3:
+            pos = 0x54 + col;
+            break;
+        default:
+            pos = 0x00 + col;
+            break;
+    }
+    
+    lcd_send_cmd(LCD_CMD_SET_DDRAM_ADDR | pos);
 }
 
 void lcd_clear(void) {
@@ -107,7 +140,7 @@ void lcd_clear(void) {
 void lcd_printf_at(uint8_t row, uint8_t col, const char *fmt, ...) {
     lcd_put_cur(row, col);
 
-    char buffer[17]; // 16 characters + null
+    char buffer[21];
     va_list args;
     va_start(args, fmt);
     vsnprintf(buffer, sizeof(buffer), fmt, args);
@@ -137,16 +170,4 @@ void lcd_cursor(uint8_t mode) {
         case 1: lcd_send_cmd(LCD_CMD_DISPLAY_CONTROL | LCD_DISPLAY_ON | LCD_CURSOR_ON); break;
         case 2: lcd_send_cmd(LCD_CMD_DISPLAY_CONTROL | LCD_DISPLAY_ON | LCD_CURSOR_ON | LCD_BLINK_ON); break;
     }
-}
-
-// Saves a custom character to 1 of 8 CGRAM slots (locations 8-15)
-void lcd_create_custom_char(uint8_t location, const uint8_t charmap[]) {
-    // Convert 8-15 to 0-7 for proper addressing
-    uint8_t hardware_slot = (uint8_t)location & 0x07; 
-    
-    lcd_send_cmd(LCD_CMD_SET_CGRAM_ADDR | (hardware_slot << 3));
-    for (int i = 0; i < 8; i++) {
-        lcd_send_data(charmap[i]);
-    }
-    lcd_send_cmd(LCD_CMD_SET_DDRAM_ADDR); 
 }

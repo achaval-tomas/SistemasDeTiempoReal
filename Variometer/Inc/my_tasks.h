@@ -35,11 +35,11 @@ void BMP280Task(void *pvParameters);
   float lift_threshold; // Umbral de velocidad vertical para inciar sonidos de ascenso en m/s
   float sink_threshold; // Umbral de velocidad vertical para inciar sonidos de descenso en m/s
 
-  uint16_t lift_hz_base; // Frecuencia inicial de tono de acsenso en Hz
-  uint16_t lift_hz_scale; // Aumento de frecuencia por cada 1m/s de ascenso en Hz
-  uint16_t sink_hz_base; // Frecuencia inicial de tono de descenso en Hz
-  uint16_t sink_hz_scale; // Aumento de frecuencia por cada 1m/s de descenso en Hz
-  uint16_t sink_hz_min; // Frecuencia mínima de tono de descenso en Hz
+  float lift_hz_base; // Frecuencia inicial de tono de acsenso en Hz
+  float lift_hz_scale; // Aumento de frecuencia por cada 1m/s de ascenso en Hz
+  float sink_hz_base; // Frecuencia inicial de tono de descenso en Hz
+  float sink_hz_scale; // Aumento de frecuencia por cada 1m/s de descenso en Hz
+  float sink_hz_min; // Frecuencia mínima de tono de descenso en Hz
 
   float sealevel_pa; // Presion al nivel del mar en pascales
  } varioConfig_td;
@@ -54,7 +54,7 @@ static const varioConfig_td defaultConfig = {
   .sink_hz_base = 300,
   .sink_hz_scale = 100,
   .sink_hz_min = 100,
-  .sealevel_pa = 102250.0f
+  .sealevel_pa = 101400.0f
  };
 
 // This configuration is shared by all tasks
@@ -100,10 +100,11 @@ void BuzzerTask(void *pvParameters);
  *   DISPLAY TASK DEFINITION AND COMMUNICATION STRUCTURES
  */
 typedef enum {
-  DISPLAY_UPDATE,
-  DISPLAY_VARIO_UPDATE,
+  DISPLAY_ON,
+  DISPLAY_UPDATE_MENU,
+  DISPLAY_UPDATE_VARIO,
   DISPLAY_CLEAR,
-  DISPLAY_STARTUP,
+  DISPLAY_START_FLIGHT,
   DISPLAY_OFF
 } displayCommandType_td;
 
@@ -111,7 +112,13 @@ typedef genericSensorData_td displayUpdateData_td;
 
 typedef struct {
   displayCommandType_td type;
-  displayUpdateData_td updateData; // Solo para comandos de tipo DISPLAY_UPDATE
+  union {
+    genericSensorData_td varioData; // Solo para comandos de tipo DISPLAY_UPDATE_VARIO
+    struct {
+      char lines[4][20];
+      uint8_t selectedLine;
+    } menuData; // Para comandos de tipo DISPLAY_UPDATE_MENU
+  }
 } displayQueueData_td;
 
 /* DISPLAY TASK

@@ -38,7 +38,7 @@ void initialize_kalman(){
     for (uint8_t i = 0; i < 30; ++i){
         bmp280_read_data(&bmp280);
         pressSum += bmp280.pressure_Pa;
-        vTaskDelay(100);
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
     
     sState.pressure = pressSum / 30;
@@ -81,23 +81,35 @@ void apply_kalman_filter(float new_pressure) {
 
 // Update pressure and temperature data in varioQueue at a fixed rate
 void BMP280Task(void *pvParameters) {
+    // 1. Declarar TODAS las variables al inicio de la tarea
+    bmp280_td bmp280 = {0};
+    sensorQueueData_td sensorQueueData = {0};
+    buzzerQueueData_td buzzMsg = {0};
+    displayQueueData_td dispMsg = {0};
+    TickType_t lastTick;
+    const TickType_t sensorDelayTicks = pdMS_TO_TICKS(SENSOR_DT_MS);
+
     bmp280_init((bmp280_settings_td){
       .config = BMP_STANDBY_0_5ms | BMP_FILTER_OFF,
       .ctrl_meas = BMP_T_OSRS_1 | BMP_P_OSRS_8 | BMP_MODE_NORMAL
     });
 
 sensor_off:
-    // Wait until wake-up notification is received from variometer
+    // Wait until wake-up notification is received from variometer UI
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-
-    bmp280_td bmp280 = {0};
-    sensorQueueData_td sensorQueueData = {0};
     
+    // Notificar a la tarea del buzzer para que inicie
+    buzzMsg.type = BUZZ_STARTUP;
+    xQueueOverwrite(buzzerQueue, &buzzMsg);
+    
+    // Notificar al display que se inició un vuelo
+    dispMsg.type = DISPLAY_START_FLIGHT;
+    xQueueOverwrite(displayQueue, &dispMsg);
+
     // Get a stable pressure reading before applying filters
     initialize_kalman();
 
-    TickType_t lastTick = xTaskGetTickCount();
-    const TickType_t sensorDelayTicks = pdMS_TO_TICKS(SENSOR_DT_MS);
+    lastTick = xTaskGetTickCount();
     
     while (1) {
         bmp280_read_data(&bmp280);
@@ -106,14 +118,26 @@ sensor_off:
         sensorQueueData.pressure_Pa = sState.pressure;
         sensorQueueData.temperature_C = bmp280.temperature_C;
         sensorQueueData.climb_rate_mps = sState.climb_rate;
+        
+        // Encolar los datos a la tarea del buzzer
+        buzzMsg.type = BUZZ_VARIO;
+        buzzMsg.vario_climb_rate = sensorQueueData.climb_rate_mps;
+        xQueueOverwrite(buzzerQueue, &buzzMsg);
 
-        xQueueOverwrite(varioQueue, &sensorQueueData);
+        // Encolar los datos a la tarea del display
+        dispMsg.type = DISPLAY_UPDATE_VARIO;
+        dispMsg.varioData = (genericSensorData_td)sensorQueueData;
+        xQueueOverwrite(displayQueue, &dispMsg);
 
         vTaskDelayUntil(&lastTick, sensorDelayTicks);
 
+        // Revisar si se debe frenar
         if (ulTaskNotifyTake(pdTRUE, 0) != 0) {
+            // Notificar al buzzer para que haga el sonido de fin de vuelo
+            buzzMsg.type = BUZZ_SHUTDOWN;
+            xQueueOverwrite(buzzerQueue, &buzzMsg);
+
             goto sensor_off;
         }
     }
-    
 }
