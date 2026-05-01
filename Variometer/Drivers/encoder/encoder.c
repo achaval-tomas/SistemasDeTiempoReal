@@ -64,8 +64,19 @@ void RE_Init(TIM_HandleTypeDef *htim) {
         RE_TimerCallback
     );
 
+    RE_Disable_Rotations(); // Rotation readings disabled by default
+}
+
+void RE_Enable_Rotations(){
     if (encoderTimerHandle != NULL) {
         xTimerStart(encoderTimerHandle, 0);
+        lastTimerCount = __HAL_TIM_GET_COUNTER(encoder_htim);
+    }
+}
+
+void RE_Disable_Rotations(){
+    if (encoderTimerHandle != NULL) {
+        xTimerStop(encoderTimerHandle, 0);
     }
 }
 

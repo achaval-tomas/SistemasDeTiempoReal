@@ -78,6 +78,9 @@ system_OFF:
         RE_GetEvent(&event, portMAX_DELAY);
     }
 
+    // Habilitar la lectura de rotaciones del encoder
+    RE_Enable_Rotations();
+
     dispMsg.type = DISPLAY_ON;
     xQueueOverwrite(displayQueue, &dispMsg);
     // Wait until display is ON
@@ -201,6 +204,9 @@ void update_display(systemState_td currentState, uint8_t menuIndex){
 void end_flight(){
     // Notificar a la tarea de sensado para que frene
     xTaskNotifyGive(sensor_task_handle);
+
+    // Habilitar la lectura de rotaciones del encoder
+    RE_Enable_Rotations();
 }
 
 
@@ -252,6 +258,9 @@ void update_setting(int16_t delta, const menuItem_td *item){
 // Acciones
 
 systemState_td start_flight_action(void) {
+    // Frenar la lectura de rotaciones para reducir jitter en estado de vuelo
+    RE_Disable_Rotations();
+
     // Notificar a la tarea de sensado para que comience
     xTaskNotifyGive(sensor_task_handle);
 

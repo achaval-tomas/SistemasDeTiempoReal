@@ -55,6 +55,12 @@ void RE_Init(TIM_HandleTypeDef *htim);
  */
 bool RE_GetEvent(encoderEvent_t *event, TickType_t xTicksToWait);
 
+// Start/stop periodic updates of encoder position
+void RE_Enable_Rotations();
+
+// After rotations are DISABLED, only PRESS events are detected
+void RE_Disable_Rotations();
+
 void RE_EXTI_Falling_Callback(uint16_t GPIO_Pin);
 void RE_EXTI_Rising_Callback(uint16_t GPIO_Pin);
 
