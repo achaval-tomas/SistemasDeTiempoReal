@@ -40,7 +40,7 @@ void DisplayTask(void *pvParameters) {
         altitude = bmp280_estimate_altitude(
           disData.varioData.pressure_Pa,
           disData.varioData.temperature_C,
-          varioConfig.sealevel_pa
+          varioConfig.sealevel_hPa*100
         );
         climb_rate = disData.varioData.climb_rate_mps;
         if (absf(climb_rate) < 0.1f) climb_rate = 0.0f; // Deadzone for small climb rates

@@ -55,6 +55,7 @@ const menuItem_td menu[] = {
     {"Comenzar vuelo",   ITEM_TYPE_ACTION,  {.action = start_flight_action}},
     {"Umbral subida",    ITEM_TYPE_SETTING, {.setting = {&varioConfig.lift_threshold, 0.1f, 0.1f, 5.0f}}},
     {"Umbral bajada",    ITEM_TYPE_SETTING, {.setting = {&varioConfig.sink_threshold, 0.1f, -10.0f, -0.1f}}},
+    {"Ajustar QNH",      ITEM_TYPE_SETTING, {.setting = {&varioConfig.sealevel_hPa, 1.0f, 950.0f, 1300.0f}}},
     {"Reset config",     ITEM_TYPE_ACTION,  {.action = reset_config_action}}
 };
 
@@ -187,7 +188,7 @@ void update_display(systemState_td currentState, uint8_t menuIndex){
             dispMsg.menuData.lines[2][0] = '\0';
             dispMsg.menuData.lines[3][0] = '\0';
             
-            dispMsg.menuData.selectedLine = 1; // Cursor on the value
+            dispMsg.menuData.selectedLine = 1;
             
             xQueueOverwrite(displayQueue, &dispMsg);
             break;
