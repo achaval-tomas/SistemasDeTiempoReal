@@ -66,6 +66,10 @@ void DisplayTask(void *pvParameters) {
         );
         lcd_printf_at(1, 11, "%c", arrow_char);
 
+        // blank for now
+        lcd_printf_at(2, 0, "%-20s", "");
+        lcd_printf_at(3, 0, "%-20s", "");
+
         break;
 
       case DISPLAY_CLEAR:
@@ -73,11 +77,10 @@ void DisplayTask(void *pvParameters) {
         break;
 
       case DISPLAY_START_FLIGHT:
-        lcd_put_cur(0, 0);
-        lcd_printf_at(0, 0, "%-20s", "Calibrando");
-        
-        lcd_put_cur(1, 0);
-        lcd_printf_at(1, 0, "%-20s", "sensores...");
+        lcd_printf_at(0, 0, "%-20s", "");
+        lcd_printf_at(1, 0, "%-20s", "     Calibrando");
+        lcd_printf_at(2, 0, "%-20s", "     sensores...");
+        lcd_printf_at(3, 0, "%-20s", "");
         break;
 
       case DISPLAY_OFF:
