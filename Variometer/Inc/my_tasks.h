@@ -118,7 +118,7 @@ typedef struct {
       char lines[4][20];
       uint8_t selectedLine;
     } menuData; // Para comandos de tipo DISPLAY_UPDATE_MENU
-  }
+  };
 } displayQueueData_td;
 
 /* DISPLAY TASK
@@ -126,5 +126,7 @@ typedef struct {
  * Can show altitude and climb rate, as well as handle display on/off and clear commands.
  */
 void DisplayTask(void *pvParameters);
+
+void UITask(void *pvParameters);
 
 #endif // _MY_TASKS_H_

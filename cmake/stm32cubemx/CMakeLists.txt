@@ -17,7 +17,6 @@ set(MX_Include_Dirs
     
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/bmp280
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/lcd
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/button
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/encoder
     
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Drivers/STM32H5xx_HAL_Driver/Inc
@@ -37,11 +36,10 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Src/task_sensor.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Src/task_display.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Src/task_buzzer.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Src/task_variometer.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Src/task_ui.c
 
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/bmp280/bmp280.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/lcd/lcd.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/button/button.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/encoder/encoder.c
 
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/main.c

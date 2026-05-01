@@ -1,8 +1,12 @@
 #include "my_tasks.h"
 #include "portmacrocommon.h"
 #include "encoder.h"
+#include "projdefs.h"
+#include "stm32h5xx_hal.h"
+#include "tim.h"
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 
 // Estado general del sistema
 typedef enum {
@@ -58,7 +62,10 @@ const menuItem_td menu[] = {
 
 extern TaskHandle_t sensor_task_handle;
 
-void TaskUI(void *pvParameters) {
+void UITask(void *pvParameters) {
+    // Inicializar encoder
+    RE_Init(&htim3);
+
     systemState_td currentState = STATE_MAIN_MENU;
     uint8_t menuIndex = 0;
     const menuItem_td *selectedItem = &menu[0]; // Inicia con el item 0 seleccionado
@@ -67,11 +74,14 @@ void TaskUI(void *pvParameters) {
 
 system_OFF:
     // Esperar una pulsacion larga para encenderse
-    while (event.type != ENCODER_EVENT_LONG_PRESS) 
+    while (event.type != ENCODER_EVENT_LONG_PRESS) {
         RE_GetEvent(&event, portMAX_DELAY);
+    }
 
     dispMsg.type = DISPLAY_ON;
     xQueueOverwrite(displayQueue, &dispMsg);
+    // Wait until display is ON
+    vTaskDelay(pdMS_TO_TICKS(150));
 
     update_display(currentState, menuIndex);
     
@@ -138,9 +148,13 @@ void update_display(systemState_td currentState, uint8_t menuIndex){
             // Cargar hasta 4 lineas
             for(int i = 0; i < 4; i++) {
                 if ((lineIndex + i) < MENU_ITEMS_COUNT) {
-                    dispMsg.menuData.lines[i] = menu[lineIndex + i].name;
+                    strncpy(dispMsg.menuData.lines[i], menu[lineIndex + i].name, sizeof(dispMsg.menuData.lines[i]) - 1);
+                    
+                    // Forzar caracter nulo al final
+                    dispMsg.menuData.lines[i][sizeof(dispMsg.menuData.lines[i]) - 1] = '\0'; 
                 } else {
-                    dispMsg.menuData.lines[i] = ""; // Linea en blanco si no es alcanzada por el menu
+                    // String vacio = caracter nulo al inicio
+                    dispMsg.menuData.lines[i][0] = '\0'; 
                 }
             }
 
@@ -151,17 +165,21 @@ void update_display(systemState_td currentState, uint8_t menuIndex){
         case STATE_EDITING_SETTING:
             dispMsg.type = DISPLAY_UPDATE_MENU; 
             
-            // Show the name of the setting on line 1
-            dispMsg.menuData.lines[0] = menu[menuIndex].name;
+            // Line 1: Nombre de la configuración
+            strncpy(dispMsg.menuData.lines[0], menu[menuIndex].name, sizeof(dispMsg.menuData.lines[0]) - 1);
+            dispMsg.menuData.lines[0][sizeof(dispMsg.menuData.lines[0]) - 1] = '\0';
             
             // Format the current float value into a string for line 2
             static char valStr[20];
             snprintf(valStr, sizeof(valStr), "> %.2f <", *(menu[menuIndex].setting.ptr));
-            dispMsg.menuData.lines[1] = valStr;
             
-            // Clear lines 3 and 4
-            dispMsg.menuData.lines[2] = "";
-            dispMsg.menuData.lines[3] = "";
+            // Line 2: El valor formateado
+            strncpy(dispMsg.menuData.lines[1], valStr, sizeof(dispMsg.menuData.lines[1]) - 1);
+            dispMsg.menuData.lines[1][sizeof(dispMsg.menuData.lines[1]) - 1] = '\0';
+
+            // Line 3 y 4: En blanco
+            dispMsg.menuData.lines[2][0] = '\0';
+            dispMsg.menuData.lines[3][0] = '\0';
             
             dispMsg.menuData.selectedLine = 1; // Cursor on the value
             

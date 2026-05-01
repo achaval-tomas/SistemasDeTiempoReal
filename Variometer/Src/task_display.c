@@ -27,12 +27,12 @@ void DisplayTask(void *pvParameters) {
         break;
 
       case DISPLAY_UPDATE_MENU:
-      // update the 4 rows according to menu data
-      for (uint8_t i = 0; i<4; ++i)
-        lcd_printf_at(i, 0, "%-20s", disData.menuData.lines[i]);
-    
+        // update the 4 rows according to menu data
+        for (uint8_t i = 0; i<2; ++i){
+          lcd_printf_at(i, 0, "%-16s", disData.menuData.lines[i]);
+        }
         lcd_cursor(2);
-        lcd_put_cur(disData.menuData.selectedLine, 0);
+        lcd_put_cur(disData.menuData.selectedLine%2, 0);
       break;
       
       case DISPLAY_UPDATE_VARIO:
@@ -48,7 +48,7 @@ void DisplayTask(void *pvParameters) {
 
         // Line 1: Altitude
         snprintf(temp, sizeof(temp), "A: %.0fm", altitude);
-        lcd_printf_at(0, 0, "%-20s", temp);
+        lcd_printf_at(0, 0, "%-16s", temp);
 
         // Line 1 end: Temperature
         snprintf(temp, sizeof(temp), "%.0f\xDF""C", temperature);
@@ -56,7 +56,7 @@ void DisplayTask(void *pvParameters) {
 
         // Line 2: Climb Rate
         snprintf(temp, sizeof(temp), "V: %+.1fm/s", climb_rate);
-        lcd_printf_at(1, 0, "%-20s", temp);
+        lcd_printf_at(1, 0, "%-16s", temp);
 
         uint8_t arrow_char = (
              (climb_rate >= varioConfig.lift_threshold) ? CHAR_UP_ARROW
@@ -73,10 +73,10 @@ void DisplayTask(void *pvParameters) {
 
       case DISPLAY_START_FLIGHT:
         lcd_put_cur(0, 0);
-        lcd_printf_at(0, 0, "%-20s", "INICIANDO VUELO");
+        lcd_printf_at(0, 0, "%-16s", "INICIANDO VUELO");
         
         lcd_put_cur(1, 0);
-        lcd_printf_at(1, 0, "%-20s", "Calibrando sensores...");
+        lcd_printf_at(1, 0, "%-16s", "Calibrando sensores...");
         break;
 
       case DISPLAY_OFF:

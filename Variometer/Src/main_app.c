@@ -2,20 +2,17 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "my_tasks.h"
-#include "button.h"
+#include "encoder.h"
 
 #define SENSOR_PRIORITY  5  // Must be able to run at a fixed rate
 #define BUZZER_PRIORITY  4  // Must wake up as soon as data is enqueued
-#define VARIO_PRIORITY   3  // Wakes up when SENSOR sleeps
+#define UI_PRIORITY   3     // Encoder actions more responsive than display
 #define DISPLAY_PRIORITY 2  // Response time not as important
 
 TaskHandle_t variometer_task_handle = NULL, sensor_task_handle = NULL;
 QueueHandle_t buzzerQueue = NULL, displayQueue = NULL, varioQueue = NULL;
 
 void start_variometer(void){
-    // Initialize peripherals
-    UserButtonEXTI_Init();
-
     // Create queues for task communication, mostly used as mutexes
     buzzerQueue = xQueueCreate(1, sizeof(buzzerQueueData_td));
     displayQueue = xQueueCreate(1, sizeof(displayQueueData_td));
@@ -32,12 +29,12 @@ void start_variometer(void){
     );
 
     xTaskCreate(
-        VariometerTask,
-        "Variometer Task",
+        UITask,
+        "UI Task",
         configMINIMAL_STACK_SIZE*4,
         (void*) NULL,
-        VARIO_PRIORITY,
-        (void*) &variometer_task_handle
+        UI_PRIORITY,
+        (void*) NULL
     );
 
     xTaskCreate(
@@ -59,4 +56,16 @@ void start_variometer(void){
     );
     
     vTaskStartScheduler();
+}
+
+// Callback para cuando se SUELTA el botón
+void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin)
+{
+    RE_EXTI_Rising_Callback(GPIO_Pin);
+}
+
+// Callback para cuando se PRESIONA el botón
+void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
+{
+    RE_EXTI_Falling_Callback(GPIO_Pin);
 }

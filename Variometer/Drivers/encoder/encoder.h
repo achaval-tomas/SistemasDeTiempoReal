@@ -13,9 +13,9 @@
 /* --- Hardware Configuration --- */
 // Note: CLK and DT pins are now managed by your STM32 Timer Alternate Functions!
 // We only need to configure the SW (Button) pin here.
-#define ENCODER_SW_PORT      GPIOA
-#define ENCODER_SW_PIN       GPIO_PIN_10
-#define ENCODER_SW_EXTI_IRQ  EXTI10_IRQn
+#define ENCODER_SW_PORT      GPIOC
+#define ENCODER_SW_PIN       GPIO_PIN_9
+#define ENCODER_SW_EXTI_IRQ  EXTI9_IRQn
 
 /* --- Timing Thresholds --- */
 #define RE_CLICK_MS          50     // Debounce / Minimum click time
@@ -55,10 +55,7 @@ void RE_Init(TIM_HandleTypeDef *htim);
  */
 bool RE_GetEvent(encoderEvent_t *event, TickType_t xTicksToWait);
 
-/**
- * @brief Must be called from HAL_GPIO_EXTI_Callback
- * @param GPIO_Pin The pin that triggered the interrupt
- */
-void RE_EXTI_Callback(uint16_t GPIO_Pin);
+void RE_EXTI_Falling_Callback(uint16_t GPIO_Pin);
+void RE_EXTI_Rising_Callback(uint16_t GPIO_Pin);
 
 #endif /* RE_H */
