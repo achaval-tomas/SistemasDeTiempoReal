@@ -72,11 +72,24 @@ void lcd_create_custom_char(uint8_t location, const uint8_t charmap[]) {
 }
 
 void lcd_load_custom_characters() {
-    const uint8_t up_arrow[8] = {0x04, 0x0E, 0x15, 0x04, 0x04, 0x04, 0x04, 0x00};
+    const uint8_t up_arrow[8]   = {0x04, 0x0E, 0x15, 0x04, 0x04, 0x04, 0x04, 0x00};
     const uint8_t down_arrow[8] = {0x04, 0x04, 0x04, 0x04, 0x15, 0x0E, 0x04, 0x00};
+    
+    // linea solida que apunta la opción seleccionada del menú
+    const uint8_t right_pointer[8] = {
+        0x08, // 0 1 0 0 0
+        0x0C, // 0 1 1 0 0
+        0x0E, // 0 1 1 1 0
+        0x0F, // 0 1 1 1 1
+        0x0E, // 0 1 1 1 0
+        0x0C, // 0 1 1 0 0
+        0x08, // 0 1 0 0 0
+        0x00  // 0 0 0 0 0
+    };
     
     lcd_create_custom_char(CHAR_UP_ARROW, up_arrow);
     lcd_create_custom_char(CHAR_DOWN_ARROW, down_arrow);
+    lcd_create_custom_char(CHAR_RIGHT_POINTER, right_pointer);
 }
 
 void lcd_init(void) {

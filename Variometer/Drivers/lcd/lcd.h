@@ -4,6 +4,7 @@
 
 #define CHAR_UP_ARROW (uint8_t)8
 #define CHAR_DOWN_ARROW (uint8_t)9
+#define CHAR_RIGHT_POINTER (uint8_t)10
 
 void lcd_init (void);   // initialize lcd
 

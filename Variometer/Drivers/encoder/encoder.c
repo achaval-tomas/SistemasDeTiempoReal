@@ -35,13 +35,13 @@ static void RE_PollerTask(void *pvParameters) {
         uint16_t currentCount = __HAL_TIM_GET_COUNTER(encoder_htim);
         int16_t delta = (int16_t)currentCount - (int16_t)lastTimerCount;
 
-        if (delta >= 4 || delta <= -4) {
+        if (delta >= 2 || delta <= -2) {
             encoderEvent_t newEvent;
             newEvent.type = ENCODER_EVENT_ROTATION;
             newEvent.delta = (delta > 0) ? 1 : -1;
             newEvent.timestamp = HAL_GetTick();
             
-            lastTimerCount += (newEvent.delta * 4); 
+            lastTimerCount += (newEvent.delta * 2); 
             
             // Enviar a la cola (usando la función normal, no FromISR)
             // Usamos tiempo de bloqueo 0 para no atascar el poller si la cola se llena

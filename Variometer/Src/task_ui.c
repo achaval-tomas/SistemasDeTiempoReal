@@ -102,6 +102,9 @@ system_OFF:
                     } else if (event.type == ENCODER_EVENT_LONG_PRESS) {
                         dispMsg.type = DISPLAY_OFF;
                         xQueueOverwrite(displayQueue, &dispMsg);
+
+                        // Remove the LONG PRESS type
+                        event.type = ENCODER_EVENT_NONE;
                         goto system_OFF;
                     }
                     break;
@@ -139,7 +142,7 @@ void update_display(systemState_td currentState, uint8_t menuIndex){
     
     switch (currentState){
         case STATE_MAIN_MENU:
-            max_start = (int8_t)MENU_ITEMS_COUNT - 4;
+            max_start = (int8_t)MENU_ITEMS_COUNT - 2;
             if (max_start < 0) max_start = 0;
             lineIndex = (menuIndex > (uint8_t)max_start) ? (uint8_t)max_start : menuIndex;
 
