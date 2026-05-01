@@ -39,7 +39,7 @@ typedef struct {
     };
 } menuItem_td;
 
-// TODO: manejar estas comunicaciones
+// Funciones auxiliares
 void update_display(systemState_td state, uint8_t menuIndex);
 void end_flight(void);
 
@@ -85,54 +85,54 @@ system_OFF:
 
     update_display(currentState, menuIndex);
     
-    for (;;) {    
+    while (1) {    
         // Bloquearse hasta recibir evento del encoder
-        if (RE_GetEvent(&event, portMAX_DELAY)) {
+        RE_GetEvent(&event, portMAX_DELAY);
 
-            // Lógica de estados
-            switch (currentState) {
-                
-                case STATE_MAIN_MENU:
-                    if (event.type == ENCODER_EVENT_ROTATION) {
-                        menuIndex = update_index(menuIndex, event.delta, MENU_ITEMS_COUNT);
-                    } 
-                    else if (event.type == ENCODER_EVENT_CLICK) {
-                        selectedItem = &menu[menuIndex];
-                        currentState = handle_menu_click(selectedItem);
-                    } else if (event.type == ENCODER_EVENT_LONG_PRESS) {
-                        dispMsg.type = DISPLAY_OFF;
-                        xQueueOverwrite(displayQueue, &dispMsg);
-
-                        // Remove the LONG PRESS type
-                        event.type = ENCODER_EVENT_NONE;
-                        goto system_OFF;
-                    }
-                    break;
-
-                case STATE_EDITING_SETTING:
-                    if (event.type == ENCODER_EVENT_ROTATION) {
-                        update_setting(event.delta, selectedItem);
-                    } 
-                    else if (event.type == ENCODER_EVENT_CLICK) {
-                        currentState = STATE_MAIN_MENU; // Volver al menú
-                    }
-                    break;
-
-                case STATE_IN_FLIGHT:
-
-                    if (event.type == ENCODER_EVENT_LONG_PRESS) {
-                        end_flight();
-
-                        currentState = STATE_MAIN_MENU;
-                        menuIndex = 0; // Volver al menú inicial
-                    }
-                    break;
-            }
+        // Lógica de estados
+        switch (currentState) {
             
-            // Actualizar pantalla según el estado actual
-            update_display(currentState, menuIndex);
+            case STATE_MAIN_MENU:
+                if (event.type == ENCODER_EVENT_ROTATION) {
+                    menuIndex = update_index(menuIndex, event.delta, MENU_ITEMS_COUNT);
+                } 
+                else if (event.type == ENCODER_EVENT_CLICK) {
+                    selectedItem = &menu[menuIndex];
+                    currentState = handle_menu_click(selectedItem);
+                } else if (event.type == ENCODER_EVENT_LONG_PRESS) {
+                    dispMsg.type = DISPLAY_OFF;
+                    xQueueOverwrite(displayQueue, &dispMsg);
+
+                    // Remove the LONG PRESS type
+                    event.type = ENCODER_EVENT_NONE;
+                    goto system_OFF;
+                }
+                break;
+
+            case STATE_EDITING_SETTING:
+                if (event.type == ENCODER_EVENT_ROTATION) {
+                    update_setting(event.delta, selectedItem);
+                } 
+                else if (event.type == ENCODER_EVENT_CLICK) {
+                    currentState = STATE_MAIN_MENU; // Volver al menú
+                }
+                break;
+
+            case STATE_IN_FLIGHT:
+
+                if (event.type == ENCODER_EVENT_LONG_PRESS) {
+                    end_flight();
+
+                    currentState = STATE_MAIN_MENU;
+                    menuIndex = 0; // Volver al menú inicial
+                }
+                break;
         }
+        
+        // Actualizar pantalla según el estado actual
+        update_display(currentState, menuIndex);
     }
+    
 }
 
 void update_display(systemState_td currentState, uint8_t menuIndex){

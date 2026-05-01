@@ -20,7 +20,7 @@
 /* --- Timing Thresholds --- */
 #define RE_CLICK_MS          50     // Debounce / Minimum click time
 #define RE_LONG_PRESS_MS     800    // Minimum time for a long press
-#define RE_POLL_INTERVAL_MS  10     // How often to check the timer in background
+#define RE_POLL_INTERVAL_MS  50     // How often to check the timer in background
 
 /* --- Event Definitions --- */
 typedef enum {
