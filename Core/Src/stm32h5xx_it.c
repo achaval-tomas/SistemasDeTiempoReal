@@ -160,6 +160,20 @@ void DebugMon_Handler(void)
 /******************************************************************************/
 
 /**
+  * @brief This function handles EXTI Line9 interrupt.
+  */
+void EXTI9_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI9_IRQn 0 */
+
+  /* USER CODE END EXTI9_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_9);
+  /* USER CODE BEGIN EXTI9_IRQn 1 */
+
+  /* USER CODE END EXTI9_IRQn 1 */
+}
+
+/**
   * @brief This function handles EXTI Line13 interrupt.
   */
 void EXTI13_IRQHandler(void)
