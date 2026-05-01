@@ -58,16 +58,7 @@ static const varioConfig_td defaultConfig = {
  };
 
 // This configuration is shared by all tasks
-static varioConfig_td varioConfig = defaultConfig;
-
-/* MAIN VARIOMETER TASK
- * Switch on/off through user button.
- * Filters and processes pressure data to estimate climb/descent rate.
- * Provides sound feedback through buzzer based on vertical speed.
- * Fully configurable through defined parameters avobe.
- */
-void VariometerTask(void *pvParameters);
-
+extern varioConfig_td varioConfig;
 
 /*
  *   BUZZER TASK DEFINITION AND COMMUNICATION STRUCTURES
