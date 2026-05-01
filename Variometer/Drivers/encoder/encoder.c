@@ -32,7 +32,7 @@ static void sendEventFromISR(encoderEventType_t type) {
 // Callback del software timer
 static void RE_TimerCallback(TimerHandle_t xTimer) {
     uint16_t currentCount = __HAL_TIM_GET_COUNTER(encoder_htim);
-    int16_t delta = (int16_t)currentCount - (int16_t)lastTimerCount;
+    int16_t delta = (int16_t)(currentCount - lastTimerCount);;
 
     // El clk se mueve de a 2 pasos
     if (delta >= 2 || delta <= -2) {

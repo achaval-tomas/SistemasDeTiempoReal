@@ -75,7 +75,7 @@ void UITask(void *pvParameters) {
 
 system_OFF:
     // Esperar una pulsacion larga para encenderse
-    while (event.type != ENCODER_EVENT_LONG_PRESS) {
+    while (!is_long_press(event)) {
         RE_GetEvent(&event, portMAX_DELAY);
     }
 
@@ -97,34 +97,44 @@ system_OFF:
         switch (currentState) {
             
             case STATE_MAIN_MENU:
-                if (event.type == ENCODER_EVENT_ROTATION) {
+                if (is_rotation(event)) {
+
                     menuIndex = update_index(menuIndex, event.delta, MENU_ITEMS_COUNT);
-                } 
-                else if (event.type == ENCODER_EVENT_CLICK) {
+
+                } else if (is_click(event)) {
+
                     selectedItem = &menu[menuIndex];
                     currentState = handle_menu_click(selectedItem);
-                } else if (event.type == ENCODER_EVENT_LONG_PRESS) {
+
+                } else if (is_long_press(event)) {
+
+                    // Switch display OFF
                     dispMsg.type = DISPLAY_OFF;
                     xQueueOverwrite(displayQueue, &dispMsg);
 
                     // Remove the LONG PRESS type
                     event.type = ENCODER_EVENT_NONE;
+
+                    // Stop checking for rotation events
+                    RE_Disable_Rotations();
+
                     goto system_OFF;
+
                 }
+
                 break;
 
             case STATE_EDITING_SETTING:
-                if (event.type == ENCODER_EVENT_ROTATION) {
+                if (is_rotation(event)) {
                     update_setting(event.delta, selectedItem);
-                } 
-                else if (event.type == ENCODER_EVENT_CLICK) {
+                } else if (is_click(event)) {
                     currentState = STATE_MAIN_MENU; // Volver al menú
                 }
                 break;
 
             case STATE_IN_FLIGHT:
 
-                if (event.type == ENCODER_EVENT_LONG_PRESS) {
+                if (is_long_press(event)) {
                     end_flight();
 
                     currentState = STATE_MAIN_MENU;
@@ -226,6 +236,7 @@ uint8_t update_index(uint8_t currentIndex, int16_t delta, uint8_t maxItems) {
 
 systemState_td handle_menu_click(const menuItem_td *item) {
     switch (item->type){
+
         case ITEM_TYPE_ACTION:
             if (item->action != NULL) {
                 // Ejecuta la accion, devolviendo el estado que la acción requiera
@@ -238,6 +249,7 @@ systemState_td handle_menu_click(const menuItem_td *item) {
         
         default:
             return STATE_MAIN_MENU;
+
     }
 }
 

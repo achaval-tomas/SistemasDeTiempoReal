@@ -30,7 +30,7 @@ void DisplayTask(void *pvParameters) {
         // update the 4 rows according to menu data
         for (uint8_t i = 0; i<4; ++i){
           if (i == disData.menuData.selectedLine)
-            lcd_printf_at(i, 0, "%c %-20s", CHAR_RIGHT_POINTER, disData.menuData.lines[i]);
+            lcd_printf_at(i, 0, "%c %-18s", CHAR_RIGHT_POINTER, disData.menuData.lines[i]);
           else
             lcd_printf_at(i, 0, "%-20s", disData.menuData.lines[i]);
         }
@@ -56,15 +56,14 @@ void DisplayTask(void *pvParameters) {
         lcd_printf_at(0, 16, "%4s", temp);
 
         // Line 2: Climb Rate
-        snprintf(temp, sizeof(temp), "V: %+.1fm/s", climb_rate);
-        lcd_printf_at(1, 0, "%-20s", temp);
-
         uint8_t arrow_char = (
              (climb_rate >= varioConfig.lift_threshold) ? CHAR_UP_ARROW
           : ((climb_rate <= varioConfig.sink_threshold) ? CHAR_DOWN_ARROW 
           : ' ')
         );
-        lcd_printf_at(1, 11, "%c", arrow_char);
+
+        snprintf(temp, sizeof(temp), "V: %+.1fm/s %c", climb_rate, arrow_char);
+        lcd_printf_at(1, 0, "%-20s", temp);
 
         // blank for now
         lcd_printf_at(2, 0, "%-20s", "");

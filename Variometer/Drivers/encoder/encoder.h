@@ -64,4 +64,17 @@ void RE_Disable_Rotations();
 void RE_EXTI_Falling_Callback(uint16_t GPIO_Pin);
 void RE_EXTI_Rising_Callback(uint16_t GPIO_Pin);
 
+// Simple helper functions to check event types
+static inline bool is_click(encoderEvent_t event){
+    return event.type == ENCODER_EVENT_CLICK;
+}
+
+static inline bool is_long_press(encoderEvent_t event){
+    return event.type == ENCODER_EVENT_LONG_PRESS;
+}
+
+static inline bool is_rotation(encoderEvent_t event){
+    return event.type == ENCODER_EVENT_ROTATION;
+}
+
 #endif /* RE_H */
