@@ -32,16 +32,18 @@ static void sendEventFromISR(encoderEventType_t type) {
 // Callback del software timer
 static void RE_TimerCallback(TimerHandle_t xTimer) {
     uint16_t currentCount = __HAL_TIM_GET_COUNTER(encoder_htim);
-    int16_t delta = (int16_t)(currentCount - lastTimerCount);;
+    int16_t delta = (int16_t)(currentCount - lastTimerCount);
 
-    // El clk se mueve de a 2 pasos
-    if (delta >= 2 || delta <= -2) {
+    // El timer se mueve 2 pasos por cada paso de rotacion fisico
+    int16_t steps = delta / 2;
+
+    if (steps != 0) {
         encoderEvent_t newEvent;
         newEvent.type = ENCODER_EVENT_ROTATION;
-        newEvent.delta = (delta > 0) ? 1 : -1;
+        newEvent.delta = steps;
         newEvent.timestamp = HAL_GetTick();
         
-        lastTimerCount += (newEvent.delta * 2); 
+        lastTimerCount += (steps * 2); 
         
         // Encolar la rotación
         xQueueSend(encoderQueue, &newEvent, 0); 
