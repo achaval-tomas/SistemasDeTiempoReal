@@ -24,10 +24,10 @@ sensorState_td sState = {
     },
     .Q =
     {
-        0.001f, // Expected pressure variance
-        0.05f   // Expected dp_dt variance
+        0.001f, // Expected pressure variance per step
+        1.0f    // Expected dp_dt variance per step
     },
-    .R = 2.56f  // Sensor noise variance
+    .R = 1.5f  // Sensor noise variance
 };
 
 // Initialize pressure value at 3 second average pressure
@@ -42,7 +42,8 @@ void initialize_kalman(){
     }
     
     sState.pressure = pressSum / 30;
-    sState.Q[0] = varioConfig.stability;
+
+    // Overwrite filter's sensitivity with user-selected value
     sState.Q[1] = varioConfig.sensitivity;
 }
 
@@ -81,7 +82,6 @@ void apply_kalman_filter(float new_pressure) {
 
 // Update pressure and temperature data in varioQueue at a fixed rate
 void BMP280Task(void *pvParameters) {
-    // 1. Declarar TODAS las variables al inicio de la tarea
     bmp280_td bmp280 = {0};
     sensorQueueData_td sensorQueueData = {0};
     buzzerQueueData_td buzzMsg = {0};
@@ -90,8 +90,8 @@ void BMP280Task(void *pvParameters) {
     const TickType_t sensorDelayTicks = pdMS_TO_TICKS(SENSOR_DT_MS);
 
     bmp280_init((bmp280_settings_td){
-      .config = BMP_STANDBY_0_5ms | BMP_FILTER_OFF,
-      .ctrl_meas = BMP_T_OSRS_1 | BMP_P_OSRS_8 | BMP_MODE_NORMAL
+      .config = BMP_STANDBY_0_5ms | BMP_FILTER_2,
+      .ctrl_meas = BMP_T_OSRS_1 | BMP_P_OSRS_4 | BMP_MODE_NORMAL
     });
 
 sensor_off:

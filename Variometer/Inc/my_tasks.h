@@ -29,7 +29,6 @@ void BMP280Task(void *pvParameters);
  */
 
  typedef struct {
-  float stability;   // Coeficiente de varianza de presion, mas alto = MENOS estable
   float sensitivity; // Coeficiente del filtro de velocidad, mas alto = MAS reacción  
 
   float lift_threshold; // Umbral de velocidad vertical para inciar sonidos de ascenso en m/s
@@ -45,8 +44,7 @@ void BMP280Task(void *pvParameters);
  } varioConfig_td;
 
 static const varioConfig_td defaultConfig = {
-  .stability = 0.001f,
-  .sensitivity = 0.02f,
+  .sensitivity = 1.0f,
   .lift_threshold = 0.2f,
   .sink_threshold = -0.3f,
   .lift_hz_base = 800,
