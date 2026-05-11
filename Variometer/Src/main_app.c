@@ -14,7 +14,6 @@ QueueHandle_t buzzerQueue = NULL, displayQueue = NULL, varioQueue = NULL;
 
 // Inicializar configuración del variometro, después será manejada y leida por los tasks
 varioConfig_td varioConfig = {
-  .stability = 0.001f,
   .sensitivity = 0.02f,
   .lift_threshold = 0.2f,
   .sink_threshold = -0.3f,
