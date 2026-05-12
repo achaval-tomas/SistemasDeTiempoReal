@@ -5,30 +5,8 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 
-extern QueueHandle_t buzzerQueue, displayQueue, varioQueue;
-
-// Time interval for variometer updates in milliseconds
-#define SENSOR_DT_MS 40
-#define DISPLAY_DT_MS 200
-
-typedef struct{
-  float pressure_Pa;
-  float temperature_C;
-  float climb_rate_mps;
-} genericSensorData_td;
-
-/* 
- *  Task that reads and updates sensor data at a fixed rate (DT_ms)
- */
-typedef genericSensorData_td sensorQueueData_td;
-
-void BMP280Task(void *pvParameters);
-
-/*
- *  VARIOMETER TASK DEFINITION AND CONFIGURATION
- */
-
- typedef struct {
+/* ----- General system configuration parameters ----- */
+typedef struct {
   float sensitivity; // Coeficiente del filtro de velocidad, mas alto = MAS reacción  
 
   float lift_threshold; // Umbral de velocidad vertical para inciar sonidos de ascenso en m/s
@@ -41,7 +19,7 @@ void BMP280Task(void *pvParameters);
   float sink_hz_min; // Frecuencia mínima de tono de descenso en Hz
 
   float sealevel_hPa; // Presion al nivel del mar en hPa
- } varioConfig_td;
+} varioConfig_td;
 
 static const varioConfig_td defaultConfig = {
   .sensitivity = 0.02f,
@@ -55,12 +33,30 @@ static const varioConfig_td defaultConfig = {
   .sealevel_hPa = 1014.0f
  };
 
-// This configuration is shared by all tasks
+// Variables shared by all tasks
 extern varioConfig_td varioConfig;
+extern QueueHandle_t buzzerQueue, displayQueue;
 
-/*
- *   BUZZER TASK DEFINITION AND COMMUNICATION STRUCTURES
+/* ----- Sensor-related structures for communication and task definition ----- */
+// Time interval for sensor readings
+#define SENSOR_DT_MS 40
+
+typedef struct{
+  float pressure_Pa;
+  float temperature_C;
+  float climb_rate_mps;
+} genericSensorData_td;
+
+typedef genericSensorData_td sensorQueueData_td;
+
+/*  Sensor (BMP280) Task
+ *  Reads and updates sensor data at a fixed rate (DT_ms)
+ *  Keeps the latest data in buzzer and display queues through overwriting.
  */
+void BMP280Task(void *pvParameters);
+
+
+/* ----- Sound-related structures for communication and task definition ----- */
 typedef enum {
   BUZZ_VARIO = 0,
   BUZZ_STARTUP = 1,
@@ -72,16 +68,17 @@ typedef struct {
   float vario_climb_rate; // Solo para comandos de tipo BUZZ_VARIO
 } buzzerQueueData_td;
 
-/* BUZZER TASK
- * Waits for sound commands from variometer task and plays corresponding tones.
- * Supports startup, shutdown and variometer feedback tunes.
+/*  Sound (Buzzer) Manager Task
+ *  Waits for sound commands from variometer task and plays corresponding tones.
+ *  Supports startup, shutdown and variometer feedback tunes.
  */
 void BuzzerTask(void *pvParameters);
 
 
-/*
- *   DISPLAY TASK DEFINITION AND COMMUNICATION STRUCTURES
- */
+/* ----- Display-related structures for communication and task definition ----- */
+// Time interval for display updates
+#define DISPLAY_DT_MS 200
+
 typedef enum {
   DISPLAY_ON,
   DISPLAY_UPDATE_MENU,
@@ -104,12 +101,15 @@ typedef struct {
   };
 } displayQueueData_td;
 
-/* DISPLAY TASK
- * Waits for display commands from variometer task and updates LCD accordingly.
- * Can show altitude and climb rate, as well as handle display on/off and clear commands.
+/*  Display Manager Task
+ *  Waits for commands from UI or variometer task and updates LCD accordingly.
  */
 void DisplayTask(void *pvParameters);
 
+/*  User Interface Task
+ *  Responds to all possible rotary encoder actions from user. Provides a menu interface
+ *  from which to set/reset configurations, and an option to start/stop flights.
+ */
 void UITask(void *pvParameters);
 
 #endif // _MY_TASKS_H_

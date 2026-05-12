@@ -10,7 +10,7 @@
 #define DISPLAY_PRIORITY 2  // Response time not as important
 
 TaskHandle_t variometer_task_handle = NULL, sensor_task_handle = NULL;
-QueueHandle_t buzzerQueue = NULL, displayQueue = NULL, varioQueue = NULL;
+QueueHandle_t buzzerQueue = NULL, displayQueue = NULL;
 
 // Inicializar configuración del variometro, después será manejada y leida por los tasks
 varioConfig_td varioConfig = {
@@ -29,7 +29,6 @@ void start_variometer(void){
     // Create queues for task communication, mostly used as mutexes
     buzzerQueue = xQueueCreate(1, sizeof(buzzerQueueData_td));
     displayQueue = xQueueCreate(1, sizeof(displayQueueData_td));
-    varioQueue = xQueueCreate(1, sizeof(sensorQueueData_td));
 
     // Create tasks
     xTaskCreate(
