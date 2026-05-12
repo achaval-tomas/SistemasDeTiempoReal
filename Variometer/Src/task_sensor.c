@@ -25,9 +25,9 @@ sensorState_td sState = {
     .Q =
     {
         0.001f, // Expected pressure variance per step
-        1.0f    // Expected dp_dt variance per step
+        0.01f    // Expected dp_dt variance per step
     },
-    .R = 1.5f  // Sensor noise variance
+    .R = 1.69f  // Sensor noise variance (RMS^2 segun bosch)
 };
 
 // Initialize pressure value at 3 second average pressure
@@ -90,8 +90,8 @@ void BMP280Task(void *pvParameters) {
     const TickType_t sensorDelayTicks = pdMS_TO_TICKS(SENSOR_DT_MS);
 
     bmp280_init((bmp280_settings_td){
-      .config = BMP_STANDBY_0_5ms | BMP_FILTER_2,
-      .ctrl_meas = BMP_T_OSRS_1 | BMP_P_OSRS_4 | BMP_MODE_NORMAL
+      .config = BMP_STANDBY_0_5ms | BMP_FILTER_OFF,
+      .ctrl_meas = BMP_T_OSRS_1 | BMP_P_OSRS_16 | BMP_MODE_NORMAL
     });
 
 sensor_off:
@@ -107,6 +107,7 @@ sensor_off:
     xQueueOverwrite(displayQueue, &dispMsg);
 
     // Get a stable pressure reading before applying filters
+    // and update sensitivity if needed
     initialize_kalman();
 
     lastTick = xTaskGetTickCount();

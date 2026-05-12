@@ -8,7 +8,7 @@
 extern QueueHandle_t buzzerQueue, displayQueue, varioQueue;
 
 // Time interval for variometer updates in milliseconds
-#define SENSOR_DT_MS 20
+#define SENSOR_DT_MS 40
 #define DISPLAY_DT_MS 200
 
 typedef struct{
@@ -44,7 +44,7 @@ void BMP280Task(void *pvParameters);
  } varioConfig_td;
 
 static const varioConfig_td defaultConfig = {
-  .sensitivity = 1.0f,
+  .sensitivity = 0.02f,
   .lift_threshold = 0.2f,
   .sink_threshold = -0.3f,
   .lift_hz_base = 800,
