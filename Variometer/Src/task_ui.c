@@ -27,7 +27,7 @@ typedef systemState_td (*menuAction_td)(void);
 typedef enum {
     FLOAT,
     INT
-} settingType_td;
+} settingType_td; // whether to display as float or int
 
 // Formato de cada item del menú
 typedef struct {
@@ -36,9 +36,9 @@ typedef struct {
     union {
         menuAction_td action;   // Función a ejecutar
         struct {
-            settingType_td type;
-            float *ptr;        // Puntero a la variable a cambiar
-            float step;        // Cuánto aumenta por cada paso del encoder
+            settingType_td type; // Para mostrar como float o int, aunque internamente se guardan floats
+            float *ptr;          // Puntero a la variable a cambiar
+            float step;          // Cuánto aumenta por cada paso del encoder
             float min;
             float max;
         } setting;
@@ -62,7 +62,7 @@ const menuItem_td menu[] = {
     {"Umbral subida",      ITEM_TYPE_SETTING, {.setting = {FLOAT, &varioConfig.lift_threshold, 0.1f, 0.1f, 5.0f}}},
     {"Umbral bajada",      ITEM_TYPE_SETTING, {.setting = {FLOAT, &varioConfig.sink_threshold, 0.1f, -10.0f, -0.1f}}},
     {"Ajustar QNH",        ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.sealevel_hPa, 1.0f, 950.0f, 1300.0f}}},
-    {"Sensibilidad",       ITEM_TYPE_SETTING, {.setting = {FLOAT, &varioConfig.sensitivity, 0.01f, 0.01f, 0.20f}}},
+    {"Sensibilidad",       ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.sensitivity, 1.0f, 1.0f, 10.0f}}},
     {"Sonido subida (Hz)", ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.lift_hz_base, 10.0f, 500.0f, 1500.0f}}},
     {"Paso subida (Hz)",   ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.lift_hz_scale, 10.0f, 0.0f, 200.0f}}},
     {"Sonido bajada (Hz)", ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.sink_hz_base, 10.0f, 100.0f, 500.0f}}},

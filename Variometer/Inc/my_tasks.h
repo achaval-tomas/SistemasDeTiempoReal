@@ -22,7 +22,7 @@ typedef struct {
 } varioConfig_td;
 
 static const varioConfig_td defaultConfig = {
-  .sensitivity = 0.02f,
+  .sensitivity = 4,
   .lift_threshold = 0.2f,
   .sink_threshold = -0.3f,
   .lift_hz_base = 800,

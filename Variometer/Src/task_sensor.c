@@ -30,6 +30,18 @@ sensorState_td sState = {
     .R = 1.69f  // Sensor noise variance (RMS^2 segun bosch)
 };
 
+static const float sensitivity_map[10] = {
+    0.001f, 0.002f, 0.005f, 0.012f, 0.025f, 
+    0.050f, 0.100f, 0.200f, 0.300f, 0.400f
+};
+
+float get_real_sensitivity(uint8_t user_level) {
+    if (user_level < 1) user_level = 1;
+    if (user_level > 10) user_level = 10;
+    
+    return sensitivity_map[user_level - 1];
+}
+
 // Initialize pressure value at 3 second average pressure
 void initialize_kalman(){
     bmp280_td bmp280 = {0};
@@ -42,9 +54,9 @@ void initialize_kalman(){
     }
     
     sState.pressure = pressSum / 30;
-
-    // Overwrite filter's sensitivity with user-selected value
-    sState.Q[1] = varioConfig.sensitivity;
+    
+    // Set sensitivity according to mapped user choice
+    sState.Q[1] = get_real_sensitivity(varioConfig.sensitivity);
 }
 
 void apply_kalman_filter(float new_pressure) {
