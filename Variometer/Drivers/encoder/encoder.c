@@ -56,7 +56,8 @@ void RE_Init(TIM_HandleTypeDef *htim) {
 void RE_Enable_Rotations(){
     if (encoderTimerHandle == NULL) return;
 
-    xTimerStart(encoderTimerHandle, 0);
+    // Start the software timer
+    xTimerReset(encoderTimerHandle, 0);
     lastTimerCount = __HAL_TIM_GET_COUNTER(encoder_htim);
 }
 
@@ -95,7 +96,6 @@ void RE_EXTI_Rising_Callback(uint16_t GPIO_Pin) {
     if (encoderQueue == NULL) return;
     if (!buttonIsPressed) return;
     
-    // rising = botón liberado
     uint32_t pressDuration = HAL_GetTick() - buttonPressTime;
     buttonIsPressed = false;
 
