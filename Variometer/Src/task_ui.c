@@ -90,6 +90,10 @@ system_OFF:
         RE_GetEvent(&event, portMAX_DELAY);
     }
 
+    currentState = STATE_MAIN_MENU;
+    menuIndex = 0;
+    selectedItem = &menu[0];
+
     // Habilitar la lectura de rotaciones del encoder
     RE_Enable_Rotations();
 
