@@ -24,6 +24,11 @@ typedef enum {
 // Typo de funciones de callback, deben devolver el estado al que transicionan
 typedef systemState_td (*menuAction_td)(void); 
 
+typedef enum {
+    FLOAT,
+    INT
+} settingType_td;
+
 // Formato de cada item del menú
 typedef struct {
     const char name[20];
@@ -31,6 +36,7 @@ typedef struct {
     union {
         menuAction_td action;   // Función a ejecutar
         struct {
+            settingType_td type;
             float *ptr;        // Puntero a la variable a cambiar
             float step;        // Cuánto aumenta por cada paso del encoder
             float min;
@@ -53,14 +59,14 @@ uint8_t update_index(uint8_t currentIndex, int16_t delta, uint8_t maxItems);
 // MENÚ
 const menuItem_td menu[] = {
     {"Comenzar vuelo",     ITEM_TYPE_ACTION,  {.action = start_flight_action}},
-    {"Umbral subida",      ITEM_TYPE_SETTING, {.setting = {&varioConfig.lift_threshold, 0.1f, 0.1f, 5.0f}}},
-    {"Umbral bajada",      ITEM_TYPE_SETTING, {.setting = {&varioConfig.sink_threshold, 0.1f, -10.0f, -0.1f}}},
-    {"Ajustar QNH",        ITEM_TYPE_SETTING, {.setting = {&varioConfig.sealevel_hPa, 1.0f, 950.0f, 1300.0f}}},
-    {"Sensibilidad",       ITEM_TYPE_SETTING, {.setting = {&varioConfig.sensitivity, 0.01f, 0.01f, 0.20f}}},
-    {"Sonido subida (Hz)", ITEM_TYPE_SETTING, {.setting = {&varioConfig.lift_hz_base, 10.0f, 500.0f, 1500.0f}}},
-    {"Paso subida (Hz)",   ITEM_TYPE_SETTING, {.setting = {&varioConfig.lift_hz_scale, 10.0f, 0.0f, 200.0f}}},
-    {"Sonido bajada (Hz)", ITEM_TYPE_SETTING, {.setting = {&varioConfig.sink_hz_base, 10.0f, 100.0f, 500.0f}}},
-    {"Paso bajada (Hz)",   ITEM_TYPE_SETTING, {.setting = {&varioConfig.sink_hz_scale, 10.0f, 0.0f, 200.0f}}},
+    {"Umbral subida",      ITEM_TYPE_SETTING, {.setting = {FLOAT, &varioConfig.lift_threshold, 0.1f, 0.1f, 5.0f}}},
+    {"Umbral bajada",      ITEM_TYPE_SETTING, {.setting = {FLOAT, &varioConfig.sink_threshold, 0.1f, -10.0f, -0.1f}}},
+    {"Ajustar QNH",        ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.sealevel_hPa, 1.0f, 950.0f, 1300.0f}}},
+    {"Sensibilidad",       ITEM_TYPE_SETTING, {.setting = {FLOAT, &varioConfig.sensitivity, 0.01f, 0.01f, 0.20f}}},
+    {"Sonido subida (Hz)", ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.lift_hz_base, 10.0f, 500.0f, 1500.0f}}},
+    {"Paso subida (Hz)",   ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.lift_hz_scale, 10.0f, 0.0f, 200.0f}}},
+    {"Sonido bajada (Hz)", ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.sink_hz_base, 10.0f, 100.0f, 500.0f}}},
+    {"Paso bajada (Hz)",   ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.sink_hz_scale, 10.0f, 0.0f, 200.0f}}},
     {"Reset config",       ITEM_TYPE_ACTION,  {.action = reset_config_action}}
 };
 
@@ -193,7 +199,11 @@ void update_display(systemState_td currentState, uint8_t menuIndex){
             
             // Format the current float value into a string for line 2
             static char valStr[20];
-            snprintf(valStr, sizeof(valStr), "> %.2f <", *(menu[menuIndex].setting.ptr));
+            if (menu[menuIndex].setting.type == FLOAT) {
+                snprintf(valStr, sizeof(valStr), "> %.2f <", *(menu[menuIndex].setting.ptr));
+            } else {
+                snprintf(valStr, sizeof(valStr), "> %.0f <", *(menu[menuIndex].setting.ptr));
+            }
             
             // Line 2: El valor formateado
             strncpy(dispMsg.menuData.lines[1], valStr, sizeof(dispMsg.menuData.lines[1]) - 1);
