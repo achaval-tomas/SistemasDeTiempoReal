@@ -52,11 +52,16 @@ uint8_t update_index(uint8_t currentIndex, int16_t delta, uint8_t maxItems);
 
 // MENÚ
 const menuItem_td menu[] = {
-    {"Comenzar vuelo",   ITEM_TYPE_ACTION,  {.action = start_flight_action}},
-    {"Umbral subida",    ITEM_TYPE_SETTING, {.setting = {&varioConfig.lift_threshold, 0.1f, 0.1f, 5.0f}}},
-    {"Umbral bajada",    ITEM_TYPE_SETTING, {.setting = {&varioConfig.sink_threshold, 0.1f, -10.0f, -0.1f}}},
-    {"Ajustar QNH",      ITEM_TYPE_SETTING, {.setting = {&varioConfig.sealevel_hPa, 1.0f, 950.0f, 1300.0f}}},
-    {"Reset config",     ITEM_TYPE_ACTION,  {.action = reset_config_action}}
+    {"Comenzar vuelo",     ITEM_TYPE_ACTION,  {.action = start_flight_action}},
+    {"Umbral subida",      ITEM_TYPE_SETTING, {.setting = {&varioConfig.lift_threshold, 0.1f, 0.1f, 5.0f}}},
+    {"Umbral bajada",      ITEM_TYPE_SETTING, {.setting = {&varioConfig.sink_threshold, 0.1f, -10.0f, -0.1f}}},
+    {"Ajustar QNH",        ITEM_TYPE_SETTING, {.setting = {&varioConfig.sealevel_hPa, 1.0f, 950.0f, 1300.0f}}},
+    {"Sensibilidad",       ITEM_TYPE_SETTING, {.setting = {&varioConfig.sensitivity, 0.01f, 0.01f, 0.20f}}},
+    {"Sonido subida (Hz)", ITEM_TYPE_SETTING, {.setting = {&varioConfig.lift_hz_base, 10.0f, 500.0f, 1500.0f}}},
+    {"Paso subida (Hz)",   ITEM_TYPE_SETTING, {.setting = {&varioConfig.lift_hz_scale, 10.0f, 0.0f, 200.0f}}},
+    {"Sonido bajada (Hz)", ITEM_TYPE_SETTING, {.setting = {&varioConfig.sink_hz_base, 10.0f, 100.0f, 500.0f}}},
+    {"Paso bajada (Hz)",   ITEM_TYPE_SETTING, {.setting = {&varioConfig.sink_hz_scale, 10.0f, 0.0f, 200.0f}}},
+    {"Reset config",       ITEM_TYPE_ACTION,  {.action = reset_config_action}}
 };
 
 #define MENU_ITEMS_COUNT (sizeof(menu) / sizeof(menu[0]))
