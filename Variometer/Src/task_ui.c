@@ -205,9 +205,9 @@ void update_display(systemState_td currentState, uint8_t menuIndex){
             // Format the current float value into a string for line 2
             static char valStr[20];
             if (menu[menuIndex].setting.type == FLOAT) {
-                snprintf(valStr, sizeof(valStr), "    > %.2f <    ", *(menu[menuIndex].setting.ptr));
+                snprintf(valStr, sizeof(valStr), "     > %.2f <    ", *(menu[menuIndex].setting.ptr));
             } else {
-                snprintf(valStr, sizeof(valStr), "    > %.0f <    ", *(menu[menuIndex].setting.ptr));
+                snprintf(valStr, sizeof(valStr), "     > %.0f <    ", *(menu[menuIndex].setting.ptr));
             }
             
             // Linea 3: El valor formateado
