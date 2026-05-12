@@ -153,7 +153,7 @@ void lcd_clear(void) {
 void lcd_printf_at(uint8_t row, uint8_t col, const char *fmt, ...) {
     lcd_put_cur(row, col);
 
-    char buffer[21];
+    char buffer[DISPLAY_LINE_WIDTH+1];
     va_list args;
     va_start(args, fmt);
     vsnprintf(buffer, sizeof(buffer), fmt, args);

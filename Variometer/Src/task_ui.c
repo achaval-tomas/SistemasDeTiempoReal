@@ -71,6 +71,7 @@ const menuItem_td menu[] = {
 };
 
 #define MENU_ITEMS_COUNT (sizeof(menu) / sizeof(menu[0]))
+#define NO_SELECTION 5
 
 extern TaskHandle_t sensor_task_handle;
 
@@ -204,20 +205,20 @@ void update_display(systemState_td currentState, uint8_t menuIndex){
             // Format the current float value into a string for line 2
             static char valStr[20];
             if (menu[menuIndex].setting.type == FLOAT) {
-                snprintf(valStr, sizeof(valStr), "> %.2f <", *(menu[menuIndex].setting.ptr));
+                snprintf(valStr, sizeof(valStr), "    > %.2f <    ", *(menu[menuIndex].setting.ptr));
             } else {
-                snprintf(valStr, sizeof(valStr), "> %.0f <", *(menu[menuIndex].setting.ptr));
+                snprintf(valStr, sizeof(valStr), "    > %.0f <    ", *(menu[menuIndex].setting.ptr));
             }
             
-            // Line 2: El valor formateado
-            strncpy(dispMsg.menuData.lines[1], valStr, sizeof(dispMsg.menuData.lines[1]) - 1);
-            dispMsg.menuData.lines[1][sizeof(dispMsg.menuData.lines[1]) - 1] = '\0';
+            // Linea 3: El valor formateado
+            strncpy(dispMsg.menuData.lines[2], valStr, sizeof(dispMsg.menuData.lines[1]) - 1);
+            dispMsg.menuData.lines[2][sizeof(dispMsg.menuData.lines[1]) - 1] = '\0';
 
-            // Line 3 y 4: En blanco
-            dispMsg.menuData.lines[2][0] = '\0';
+            // Lineas 2 y 4: En blanco
+            dispMsg.menuData.lines[1][0] = '\0';
             dispMsg.menuData.lines[3][0] = '\0';
             
-            dispMsg.menuData.selectedLine = 1;
+            dispMsg.menuData.selectedLine = NO_SELECTION;
             
             xQueueOverwrite(displayQueue, &dispMsg);
             break;
@@ -300,6 +301,19 @@ systemState_td start_flight_action(void) {
 }
 
 systemState_td reset_config_action(void) {
+    // Show configuration reset message for 3 seconds
+    displayQueueData_td dispMsg = {0};
+    dispMsg.type = DISPLAY_UPDATE_MENU;
+    
+    strncpy(dispMsg.menuData.lines[0], ">                  <", 21);
+    strncpy(dispMsg.menuData.lines[1], ">  Configuracion   <", 21);
+    strncpy(dispMsg.menuData.lines[2], ">  Reestablecida   <", 21);
+    strncpy(dispMsg.menuData.lines[3], ">                  <", 21);
+    dispMsg.menuData.selectedLine = NO_SELECTION;
+
+    xQueueOverwrite(displayQueue, &dispMsg);
+    vTaskDelay(pdMS_TO_TICKS(3000));
+
     varioConfig = defaultConfig;
     return STATE_MAIN_MENU; // Stay in the menu
 }

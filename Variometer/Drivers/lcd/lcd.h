@@ -2,6 +2,9 @@
 #define I2C_LCD_H_
 #include <stdint.h>
 
+#define DISPLAY_LINE_COUNT 4
+#define DISPLAY_LINE_WIDTH 20
+
 #define CHAR_UP_ARROW (uint8_t)8
 #define CHAR_DOWN_ARROW (uint8_t)9
 #define CHAR_RIGHT_POINTER (uint8_t)10

@@ -15,7 +15,7 @@ void DisplayTask(void *pvParameters) {
   displayQueueData_td disData;
   TickType_t lastTick = xTaskGetTickCount();
   
-  char temp[17]; 
+  char temp[21]; 
   float altitude, climb_rate, temperature;
 
   while (1) {
@@ -27,8 +27,8 @@ void DisplayTask(void *pvParameters) {
         break;
 
       case DISPLAY_UPDATE_MENU:
-        // update the 4 rows according to menu data
-        for (uint8_t i = 0; i<4; ++i){
+        // update the rows according to menu data
+        for (uint8_t i = 0; i<DISPLAY_LINE_COUNT; ++i){
           if (i == disData.menuData.selectedLine)
             lcd_printf_at(i, 0, "%c %-18s", CHAR_RIGHT_POINTER, disData.menuData.lines[i]);
           else
