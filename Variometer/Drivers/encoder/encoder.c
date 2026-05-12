@@ -1,5 +1,6 @@
 #include "encoder.h"
 #include "FreeRTOS.h"
+#include "stm32h5xx_hal.h"
 #include "timers.h" 
 
 // Handle para el software timer que revisará al clk del encoder
@@ -13,22 +14,6 @@ static volatile uint16_t lastTimerCount = 0;
 static volatile uint32_t buttonPressTime = 0;
 static volatile bool buttonIsPressed = false;
 
-
-// Helper
-static void sendEventFromISR(encoderEventType_t type) {
-    if (encoderQueue == NULL) return;
-
-    encoderEvent_t newEvent;
-    newEvent.type = type;
-    newEvent.delta = 0; // Button events have 0 delta
-    newEvent.timestamp = HAL_GetTick();
-
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xQueueSendFromISR(encoderQueue, &newEvent, &xHigherPriorityTaskWoken);
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-}
-
-
 // Callback del software timer
 static void RE_TimerCallback(TimerHandle_t xTimer) {
     uint16_t currentCount = __HAL_TIM_GET_COUNTER(encoder_htim);
@@ -38,10 +23,9 @@ static void RE_TimerCallback(TimerHandle_t xTimer) {
     int16_t steps = delta / 2;
 
     if (steps != 0) {
-        encoderEvent_t newEvent;
+        encoderEvent_td newEvent;
         newEvent.type = ENCODER_EVENT_ROTATION;
         newEvent.delta = steps;
-        newEvent.timestamp = HAL_GetTick();
         
         lastTimerCount += (steps * 2); 
         
@@ -55,34 +39,34 @@ void RE_Init(TIM_HandleTypeDef *htim) {
     HAL_TIM_Encoder_Start(encoder_htim, TIM_CHANNEL_ALL);
     lastTimerCount = __HAL_TIM_GET_COUNTER(encoder_htim);
 
-    encoderQueue = xQueueCreate(ENCODER_QUEUE_SIZE, sizeof(encoderEvent_t));
+    encoderQueue = xQueueCreate(ENCODER_QUEUE_SIZE, sizeof(encoderEvent_td));
 
     // Crear e iniciar un software timer periódico
     encoderTimerHandle = xTimerCreate(
-        "EncTimer", 
+        "Encoder Timer", 
         pdMS_TO_TICKS(RE_POLL_INTERVAL_MS), 
         pdTRUE, // autoReload
         (void *)0, 
         RE_TimerCallback
     );
 
-    RE_Disable_Rotations(); // Rotation readings disabled by default
+    RE_Disable_Rotations(); // Rotation readings DISABLED by default
 }
 
 void RE_Enable_Rotations(){
-    if (encoderTimerHandle != NULL) {
-        xTimerStart(encoderTimerHandle, 0);
-        lastTimerCount = __HAL_TIM_GET_COUNTER(encoder_htim);
-    }
+    if (encoderTimerHandle == NULL) return;
+
+    xTimerStart(encoderTimerHandle, 0);
+    lastTimerCount = __HAL_TIM_GET_COUNTER(encoder_htim);
 }
 
 void RE_Disable_Rotations(){
-    if (encoderTimerHandle != NULL) {
-        xTimerStop(encoderTimerHandle, 0);
-    }
+    if (encoderTimerHandle == NULL) return;
+
+    xTimerStop(encoderTimerHandle, 0);
 }
 
-bool RE_GetEvent(encoderEvent_t *event, TickType_t xTicksToWait) {
+bool RE_GetEvent(encoderEvent_td *event, TickType_t xTicksToWait) {
     if (encoderQueue == NULL) return false;
 
     // Solo despertar cuando haya un elemento en la queue (boton o rotacion) o timeout
@@ -93,29 +77,36 @@ bool RE_GetEvent(encoderEvent_t *event, TickType_t xTicksToWait) {
     return false; // Timeout
 }
 
+// FALLING = PRESIONADO
 void RE_EXTI_Falling_Callback(uint16_t GPIO_Pin) {
-    // falling = boton presionado
-    if (GPIO_Pin == ENCODER_SW_PIN) {
-        if (!buttonIsPressed) {
-            buttonPressTime = HAL_GetTick();
-            buttonIsPressed = true;
-        }
+    if (GPIO_Pin != ENCODER_SW_PIN) return; 
+
+    if (!buttonIsPressed) {
+        buttonPressTime = HAL_GetTick();
+        buttonIsPressed = true;
     }
+
 }
 
+// RISING = LIBERADO
 void RE_EXTI_Rising_Callback(uint16_t GPIO_Pin) {
+    // Return if invalid pin, uninitialized queue or no press detected before release.
+    if (GPIO_Pin != ENCODER_SW_PIN) return;
+    if (encoderQueue == NULL) return;
+    if (!buttonIsPressed) return;
+    
     // rising = botón liberado
-    if (GPIO_Pin == ENCODER_SW_PIN) {
-        if (buttonIsPressed) {
-            uint32_t pressDuration = HAL_GetTick() - buttonPressTime;
-            buttonIsPressed = false;
+    uint32_t pressDuration = HAL_GetTick() - buttonPressTime;
+    buttonIsPressed = false;
 
-            if (pressDuration >= RE_LONG_PRESS_MS) {
-                sendEventFromISR(ENCODER_EVENT_LONG_PRESS);
-            } 
-            else if (pressDuration >= RE_CLICK_MS) {
-                sendEventFromISR(ENCODER_EVENT_CLICK);
-            }
-        }
-    }
+    // Skip clicks that are too short
+    if (pressDuration < RE_CLICK_MS) return;
+
+    encoderEvent_td newEvent;
+    newEvent.type = (pressDuration >= RE_LONG_PRESS_MS) ? ENCODER_EVENT_LONG_PRESS : ENCODER_EVENT_CLICK;
+    newEvent.delta = 0;
+
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xQueueSendFromISR(encoderQueue, &newEvent, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }

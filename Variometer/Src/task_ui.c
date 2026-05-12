@@ -81,7 +81,7 @@ void UITask(void *pvParameters) {
     systemState_td currentState = STATE_MAIN_MENU;
     uint8_t menuIndex = 0;
     const menuItem_td *selectedItem = &menu[0]; // Inicia con el item 0 seleccionado
-    encoderEvent_t event = {ENCODER_EVENT_NONE, 0, 0};
+    encoderEvent_td event = {ENCODER_EVENT_NONE, 0};
     displayQueueData_td dispMsg = {0};
 
 system_OFF:
