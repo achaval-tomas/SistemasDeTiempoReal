@@ -61,12 +61,6 @@ extern varioConfig_td varioConfig;
 /*
  *   BUZZER TASK DEFINITION AND COMMUNICATION STRUCTURES
  */
-
-typedef struct {
-  uint32_t frequencyHZ;
-  uint32_t durationMS;
-} buzzerParams_td;
-
 typedef enum {
   BUZZ_VARIO = 0,
   BUZZ_STARTUP = 1,

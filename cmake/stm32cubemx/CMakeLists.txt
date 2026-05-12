@@ -18,6 +18,7 @@ set(MX_Include_Dirs
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/bmp280
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/lcd
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/encoder
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/buzzer
     
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Drivers/STM32H5xx_HAL_Driver/Inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Drivers/STM32H5xx_HAL_Driver/Inc/Legacy
@@ -41,6 +42,7 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/bmp280/bmp280.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/lcd/lcd.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/encoder/encoder.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Variometer/Drivers/buzzer/buzzer.c
 
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/gpio.c
