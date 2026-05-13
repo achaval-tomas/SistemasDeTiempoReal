@@ -1,11 +1,20 @@
+#include "FreeRTOSConfig.h"
 #include "my_tasks.h"
 #include "lcd.h"
 #include <stdint.h>
 #include <stdio.h>
 #include "bmp280.h" // for altitude estimation service
+#include "portmacrocommon.h"
 
 float absf(float x) {
     return (x < 0.0f) ? -x : x;
+}
+
+void get_elapsed_time(TickType_t start, uint8_t *hours, uint8_t *minutes, uint8_t *seconds){
+    uint32_t elapsed_seconds = (xTaskGetTickCount() - start) / configTICK_RATE_HZ;
+    *hours   = elapsed_seconds / 3600;
+    *minutes = (elapsed_seconds % 3600) / 60;
+    *seconds = elapsed_seconds % 60;
 }
 
 void DisplayTask(void *pvParameters) {
@@ -13,7 +22,8 @@ void DisplayTask(void *pvParameters) {
   const TickType_t dislpayDT_ticks = pdMS_TO_TICKS(DISPLAY_DT_MS);
   
   displayQueueData_td disData;
-  TickType_t lastTick = xTaskGetTickCount();
+  TickType_t lastTick = xTaskGetTickCount(), flight_start_tick = 0;
+  uint8_t hours, minutes, seconds;
   
   char temp[21]; 
   float altitude, climb_rate, temperature;
@@ -47,15 +57,20 @@ void DisplayTask(void *pvParameters) {
 
         temperature = disData.varioData.temperature_C;
 
-        // Line 1: Altitude
-        snprintf(temp, sizeof(temp), "A: %.0fm", altitude);
-        lcd_printf_at(0, 0, "%-20s", temp);
-
+        // Line 1 start: Time since start
+        get_elapsed_time(flight_start_tick, &hours, &minutes, &seconds);
+        snprintf(temp, sizeof(temp), "%02u:%02u:%02u", hours, minutes, seconds);
+        lcd_printf_at(0, 0, "%-16s", temp);
+        
         // Line 1 end: Temperature
         snprintf(temp, sizeof(temp), "%.0f\xDF""C", temperature);
         lcd_printf_at(0, 16, "%4s", temp);
 
-        // Line 2: Climb Rate
+        // Line 2: Estimated ltitude over sea level
+        snprintf(temp, sizeof(temp), "A: %.0fm", altitude);
+        lcd_printf_at(1, 0, "%-20s", temp);
+
+        // Line 3: Climb Rate
         uint8_t arrow_char = (
              (climb_rate >= varioConfig.lift_threshold) ? CHAR_UP_ARROW
           : ((climb_rate <= varioConfig.sink_threshold) ? CHAR_DOWN_ARROW 
@@ -63,14 +78,11 @@ void DisplayTask(void *pvParameters) {
         );
 
         snprintf(temp, sizeof(temp), "V: %+.1fm/s %c", climb_rate, arrow_char);
-        lcd_printf_at(1, 0, "%-20s", temp);
-
-        // Line 3: Altitude over takeoff
-        snprintf(temp, sizeof(temp), "Despegue: %+.0fm", altitude-varioConfig.takeoff_ASL_m);
         lcd_printf_at(2, 0, "%-20s", temp);
 
-        // Line 4: Empty for now
-        lcd_printf_at(3, 0, "%-20s", "");
+        // Line 4: Estimated altitude over takeoff
+        snprintf(temp, sizeof(temp), "Despegue: %+.0fm", altitude-varioConfig.takeoff_ASL_m);
+        lcd_printf_at(3, 0, "%-20s", temp);
 
         break;
 
@@ -83,6 +95,7 @@ void DisplayTask(void *pvParameters) {
         lcd_printf_at(1, 0, "%-20s", "     Calibrando");
         lcd_printf_at(2, 0, "%-20s", "     sensores...");
         lcd_printf_at(3, 0, "%-20s", "");
+        flight_start_tick = xTaskGetTickCount();
         break;
 
       case DISPLAY_OFF:
