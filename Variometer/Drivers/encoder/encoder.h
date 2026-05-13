@@ -15,7 +15,7 @@
 
 // Timing configurations
 #define RE_CLICK_MS          50     // Debounce / Minimum click time
-#define RE_LONG_PRESS_MS     800    // Minimum time for a long press
+#define RE_LONG_PRESS_MS     1000   // Time to hold to be considered a long press
 #define RE_POLL_INTERVAL_MS  50     // How often to check the timer for rotations
 
 // Encoder event types
