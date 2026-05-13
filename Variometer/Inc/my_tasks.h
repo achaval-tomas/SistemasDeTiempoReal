@@ -35,7 +35,7 @@ static const varioConfig_td defaultConfig = {
 
 // Variables shared by all tasks
 extern varioConfig_td varioConfig;
-extern QueueHandle_t buzzerQueue, displayQueue;
+extern QueueHandle_t buzzerQueue, displayQueue, encoderEventQueue;
 
 /* ----- Sensor-related structures for communication and task definition ----- */
 // Time interval for sensor readings

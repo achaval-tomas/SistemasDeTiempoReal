@@ -6,11 +6,11 @@
 
 #define SENSOR_PRIORITY  5  // Must be able to run at a fixed rate
 #define BUZZER_PRIORITY  4  // Must wake up as soon as data is enqueued
-#define UI_PRIORITY   3     // Encoder actions more responsive than display
+#define UI_PRIORITY      3  // Encoder actions more responsive than display
 #define DISPLAY_PRIORITY 2  // Response time not as important
 
-TaskHandle_t variometer_task_handle = NULL, sensor_task_handle = NULL;
-QueueHandle_t buzzerQueue = NULL, displayQueue = NULL;
+TaskHandle_t sensor_task_handle = NULL;
+QueueHandle_t buzzerQueue = NULL, displayQueue = NULL, encoderEventQueue = NULL;
 
 // Inicializar configuración del variometro, después será manejada y leida por los tasks
 varioConfig_td varioConfig = {
@@ -29,6 +29,7 @@ void start_variometer(void){
     // Create queues for task communication, mostly used as mutexes
     buzzerQueue = xQueueCreate(1, sizeof(buzzerQueueData_td));
     displayQueue = xQueueCreate(1, sizeof(displayQueueData_td));
+    encoderEventQueue = xQueueCreate(8, sizeof(encoderEvent_td));
 
     // Create tasks
     xTaskCreate(

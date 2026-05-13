@@ -1,14 +1,11 @@
 #include "encoder.h"
-#include "FreeRTOS.h"
-#include "stm32h5xx_hal.h"
-#include "timers.h" 
 
 // Handle para el software timer que revisará al clk del encoder
 static TimerHandle_t encoderTimerHandle = NULL;
 
 // Variables de estado privadas
-static QueueHandle_t encoderQueue;
 static TIM_HandleTypeDef *encoder_htim;
+static QueueHandle_t encoder_queue;
 static volatile uint16_t lastTimerCount = 0;
 
 static volatile uint32_t buttonPressTime = 0;
@@ -30,16 +27,16 @@ static void RE_TimerCallback(TimerHandle_t xTimer) {
         lastTimerCount += (steps * 2); 
         
         // Encolar la rotación
-        xQueueSend(encoderQueue, &newEvent, 0); 
+        xQueueSend(encoder_queue, &newEvent, 0); 
     }
 }
 
-void RE_Init(TIM_HandleTypeDef *htim) {
+void RE_Init(TIM_HandleTypeDef *htim, QueueHandle_t eventsQueue) {
     encoder_htim = htim;
     HAL_TIM_Encoder_Start(encoder_htim, TIM_CHANNEL_ALL);
     lastTimerCount = __HAL_TIM_GET_COUNTER(encoder_htim);
 
-    encoderQueue = xQueueCreate(ENCODER_QUEUE_SIZE, sizeof(encoderEvent_td));
+    encoder_queue = eventsQueue;
 
     // Crear e iniciar un software timer periódico
     encoderTimerHandle = xTimerCreate(
@@ -67,17 +64,6 @@ void RE_Disable_Rotations(){
     xTimerStop(encoderTimerHandle, 0);
 }
 
-bool RE_GetEvent(encoderEvent_td *event, TickType_t xTicksToWait) {
-    if (encoderQueue == NULL) return false;
-
-    // Solo despertar cuando haya un elemento en la queue (boton o rotacion) o timeout
-    if (xQueueReceive(encoderQueue, event, xTicksToWait) == pdPASS) {
-        return true;
-    }
-    
-    return false; // Timeout
-}
-
 // FALLING = PRESIONADO
 void RE_EXTI_Falling_Callback(uint16_t GPIO_Pin) {
     if (GPIO_Pin != ENCODER_SW_PIN) return; 
@@ -93,7 +79,7 @@ void RE_EXTI_Falling_Callback(uint16_t GPIO_Pin) {
 void RE_EXTI_Rising_Callback(uint16_t GPIO_Pin) {
     // Return if invalid pin, uninitialized queue or no press detected before release.
     if (GPIO_Pin != ENCODER_SW_PIN) return;
-    if (encoderQueue == NULL) return;
+    if (encoder_queue == NULL) return;
     if (!buttonIsPressed) return;
     
     uint32_t pressDuration = HAL_GetTick() - buttonPressTime;
@@ -107,6 +93,6 @@ void RE_EXTI_Rising_Callback(uint16_t GPIO_Pin) {
     newEvent.delta = 0;
 
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xQueueSendFromISR(encoderQueue, &newEvent, &xHigherPriorityTaskWoken);
+    xQueueSendFromISR(encoder_queue, &newEvent, &xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }

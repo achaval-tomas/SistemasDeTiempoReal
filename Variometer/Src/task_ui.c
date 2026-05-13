@@ -76,8 +76,8 @@ const menuItem_td menu[] = {
 extern TaskHandle_t sensor_task_handle;
 
 void UITask(void *pvParameters) {
-    // Inicializar encoder
-    RE_Init(&htim3);
+    // Inicializar encoder, mandará eventos a encoderEventQueue
+    RE_Init(&htim3, encoderEventQueue);
 
     systemState_td currentState = STATE_MAIN_MENU;
     uint8_t menuIndex = 0;
@@ -88,7 +88,7 @@ void UITask(void *pvParameters) {
 system_OFF:
     // Esperar una pulsacion larga para encenderse
     while (!is_long_press(event)) {
-        RE_GetEvent(&event, portMAX_DELAY);
+        xQueueReceive(encoderEventQueue, &event, portMAX_DELAY);
     }
 
     currentState = STATE_MAIN_MENU;
@@ -107,7 +107,7 @@ system_OFF:
     
     while (1) {    
         // Bloquearse hasta recibir evento del encoder
-        RE_GetEvent(&event, portMAX_DELAY);
+        xQueueReceive(encoderEventQueue, &event, portMAX_DELAY);
 
         // Lógica de estados
         switch (currentState) {

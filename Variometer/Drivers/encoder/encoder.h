@@ -1,14 +1,12 @@
 #ifndef RE_H // Rotary Encoder (RE)
 #define RE_H
 
+#include "FreeRTOS.h"
+#include "timers.h" 
+#include "queue.h"
 #include "stm32h5xx_hal.h"
 #include <stdint.h>
 #include <stdbool.h>
-
-/* FreeRTOS Includes */
-#include "FreeRTOS.h"
-#include "queue.h"
-#include "task.h"
 
 // HW Pin configuration (assuming TIMER pre-configured)
 #define ENCODER_SW_PORT      GPIOC
@@ -19,8 +17,6 @@
 #define RE_CLICK_MS          50     // Debounce / Minimum click time
 #define RE_LONG_PRESS_MS     800    // Minimum time for a long press
 #define RE_POLL_INTERVAL_MS  50     // How often to check the timer for rotations
-
-#define ENCODER_QUEUE_SIZE 8
 
 // Encoder event types
 typedef enum {
@@ -35,20 +31,9 @@ typedef struct {
     int16_t delta;           // for rotation type, +1 (CW) or -1 (CCW)
 } encoderEvent_td;
 
-
-/**
- * @brief Initializes the Encoder Library and starts the hardware timer
- * @param htim Pointer to the configured Timer Handle (e.g., &htim2)
- */
-void RE_Init(TIM_HandleTypeDef *htim);
-
-/**
- * @brief Fetches the next event (Rotation or Button). 
- * @param event Pointer to structure to populate
- * @param xTicksToWait FreeRTOS timeout
- * @return true if an event occurred, false on timeout
- */
-bool RE_GetEvent(encoderEvent_td *event, TickType_t xTicksToWait);
+// Initializes library, needs htim preconfigured in encoder mode and queue handle where
+// it will send all encoder events.
+void RE_Init(TIM_HandleTypeDef *htim, QueueHandle_t eventsQueue);
 
 // Start/stop periodic updates of encoder position
 void RE_Enable_Rotations();
