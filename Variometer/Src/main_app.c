@@ -22,7 +22,8 @@ varioConfig_td varioConfig = {
   .sink_hz_base = 300,
   .sink_hz_scale = 100,
   .sink_hz_min = 100,
-  .sealevel_hPa = 1014.0f
+  .sealevel_hPa = 1014.0f,
+  .takeoff_ASL_m = 200.0f
 };
 
 void start_variometer(void){

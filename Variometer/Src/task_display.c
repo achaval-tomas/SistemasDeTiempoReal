@@ -65,8 +65,11 @@ void DisplayTask(void *pvParameters) {
         snprintf(temp, sizeof(temp), "V: %+.1fm/s %c", climb_rate, arrow_char);
         lcd_printf_at(1, 0, "%-20s", temp);
 
-        // blank for now
-        lcd_printf_at(2, 0, "%-20s", "");
+        // Line 3: Altitude over takeoff
+        snprintf(temp, sizeof(temp), "Despegue: %+.0fm", altitude-varioConfig.takeoff_ASL_m);
+        lcd_printf_at(2, 0, "%-20s", temp);
+
+        // Line 4: Empty for now
         lcd_printf_at(3, 0, "%-20s", "");
 
         break;
