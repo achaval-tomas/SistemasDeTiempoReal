@@ -36,8 +36,7 @@ El objetivo principal del proyecto es desarrollar un sistema de variómetro para
 
 ❖ Feedback Auditivo (Buzzer Pasivo): Actuador principal del sistema que emite los tonos de ascenso/descenso en tiempo real. Es manejado mediante una salida de PWM generada por un Timer de hardware para controlar su frecuencia.
 
-❖ Interfaz de Usuario (Display LCD): Interfaz para mostrar el menú de configuraciones y los datos de vuelo en tiempo real. Se actualiza mediante
-comandos enviados a través de un bus I2C.
+❖ Interfaz de Usuario (Display LCD): Interfaz para mostrar el menú de configuraciones y los datos de vuelo en tiempo real. Se actualiza mediante comandos enviados a través de un bus I2C.
 
 ## ¿Qué hace que sea un sistema de tiempo real?
 
@@ -54,25 +53,25 @@ Es decir, el tiempo de respuesta es una parte fundamental de la corrección del 
 
 ### Tareas Principales y Prioridades
 
-❖ Tarea de Interfaz de Usuario:
-➢ Prioridad baja, se requiere tiempo de respuesta “humano”.
+❖ Tarea de Interfaz de Usuario:</br>
+➢ Prioridad baja, se requiere tiempo de respuesta “humano”.</br>
 ➢ Responde a eventos de un encoder rotativo, permitiendo la navegación de un menú, cambios de configuraciones e inicio/frenado de vuelos.
 
-❖ Tarea de Sensado y Filtrado:
-➢ Prioridad máxima para garantizar frecuencia de muestreo constante.
+❖ Tarea de Sensado y Filtrado:</br>
+➢ Prioridad máxima para garantizar frecuencia de muestreo constante.</br>
 ➢ Lee los datos del sensor de presión atmosférica y aplica un filtro de Kalman a una frecuencia constante.
 
-❖ Tarea de Control de Sonido:
-➢ Segunda prioridad más alta. Luego de que se produzca un dato por la tarea de sensado, lo primero que debe ocurrir es el feedback auditivo. No es prioridad máxima ya que si la tarea de sensado está leyendo un nuevo dato, conviene esperar antes de emitir un sonido que quizás ya no es relevante.
+❖ Tarea de Control de Sonido:</br>
+➢ Segunda prioridad más alta. Luego de que se produzca un dato por la tarea de sensado, lo primero que debe ocurrir es el feedback auditivo. No es prioridad máxima ya que si la tarea de sensado está leyendo un nuevo dato, conviene esperar antes de emitir un sonido que quizás ya no es relevante.</br>
 ➢ Esta tarea emite los sonidos a distintas frecuencias y cadencias que indican ascenso/descenso al piloto a partir de los datos obtenidos del sensor.
 
-❖ Tarea de Control de Display:
-➢ Prioridad mínima, tiempo de respuesta “humano”.
+❖ Tarea de Control de Display:</br>
+➢ Prioridad mínima, tiempo de respuesta “humano”.</br>
 ➢ Esta tarea recibe eventos de actualización de menú o datos de vuelo y muestra lo requerido en el panel LCD.
 
-❖ Extra: Software Timer para detectar rotaciones del encoder
-➢ Modo AutoReload con período de 50ms
-➢ Asociado a una función de callback que lee el valor del timer asociado al encoder e informa al menú ante eventos de rotación.
+❖ Extra: Software Timer para detectar rotaciones del encoder</br>
+➢ Modo AutoReload con período de 50ms</br>
+➢ Asociado a una función de callback que lee el valor del timer asociado al encoder e informa al menú ante eventos de rotación.</br>
 ➢ Se puede deshabilitar en modo de vuelo para reducir jitter ya que las rotaciones sólo interesan en el menú principal y rehabilitar tras salir del modo de vuelo mediante una pulsación larga.
 
 
@@ -94,10 +93,10 @@ La principal fuente de interrupciones será el pulsador del encoder, en donde se
 
 El microcontrolador utilizado será el **STM32 Nucleo H533RE**.
 
-Los periféricos configurados serán:
-❖ **Timer en modo encoder** (lee dos canales para detectar **rotaciones** del encoder en cualquier sentido).
-❖ Un pin de **GPIO en modo EXTI** de Rising y Falling para las **pulsaciones** del encoder.
-❖ **Timer en modo PWM** para la generación de distintas frecuencias de **sonido** en el **buzzer**.
+Los periféricos configurados serán:</br>
+❖ **Timer en modo encoder** (lee dos canales para detectar **rotaciones** del encoder en cualquier sentido).</br>
+❖ Un pin de **GPIO en modo EXTI** de Rising y Falling para las **pulsaciones** del encoder.</br>
+❖ **Timer en modo PWM** para la generación de distintas frecuencias de **sonido** en el **buzzer**.</br>
 ❖ **I2C** para la lectura del **sensor** y la escritura al **display**. En principio serán **dos buses** independientes para aislar la lógica de 3.3v (sensor) de la de 5v (LCD), pero en caso de utilizar uno solo, será protegido por **mutex**.
 
 ## Métodos de validación
