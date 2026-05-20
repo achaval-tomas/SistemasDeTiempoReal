@@ -1,7 +1,8 @@
-#include "FreeRTOSConfig.h"
 #include "my_tasks.h"
 #include "lcd.h"
+#include "FreeRTOSConfig.h"
 #include <stdint.h>
+#include "stdbool.h"
 #include <stdio.h>
 #include "bmp280.h" // for altitude estimation service
 #include "portmacrocommon.h"
@@ -23,7 +24,9 @@ void DisplayTask(void *pvParameters) {
   
   displayQueueData_td disData;
   TickType_t lastTick = xTaskGetTickCount(), flight_start_tick = 0;
+  uint16_t takeoff_ASL_m = 0;
   uint8_t hours, minutes, seconds;
+  bool should_set_initial_stats = true;
   
   char temp[21]; 
   float altitude, climb_rate, temperature;
@@ -47,6 +50,18 @@ void DisplayTask(void *pvParameters) {
       break;
       
       case DISPLAY_UPDATE_VARIO:
+        // Set initial stats at the start of the flight
+        // to show time since takeoff and altitude over takeoff
+        if (should_set_initial_stats) {
+          flight_start_tick = xTaskGetTickCount();
+          takeoff_ASL_m = bmp280_estimate_altitude(
+            disData.varioData.pressure_Pa,
+            disData.varioData.temperature_C,
+            varioConfig.sealevel_hPa*100
+          );
+          should_set_initial_stats = false;
+        }
+
         altitude = bmp280_estimate_altitude(
           disData.varioData.pressure_Pa,
           disData.varioData.temperature_C,
@@ -81,7 +96,7 @@ void DisplayTask(void *pvParameters) {
         lcd_printf_at(2, 0, "%-20s", temp);
 
         // Line 4: Estimated altitude over takeoff
-        snprintf(temp, sizeof(temp), "Despegue: %+.0fm", altitude-varioConfig.takeoff_ASL_m);
+        snprintf(temp, sizeof(temp), "Despegue: %+.0fm", altitude-takeoff_ASL_m);
         lcd_printf_at(3, 0, "%-20s", temp);
 
         break;
@@ -95,7 +110,7 @@ void DisplayTask(void *pvParameters) {
         lcd_printf_at(1, 0, "%-20s", "     Calibrando");
         lcd_printf_at(2, 0, "%-20s", "     sensores...");
         lcd_printf_at(3, 0, "%-20s", "");
-        flight_start_tick = xTaskGetTickCount();
+        should_set_initial_stats = true; 
         break;
 
       case DISPLAY_OFF:

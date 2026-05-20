@@ -19,8 +19,6 @@ typedef struct {
   float sink_hz_min; // Frecuencia mínima de tono de descenso en Hz
 
   float sealevel_hPa; // Presion al nivel del mar en hPa
-
-  float takeoff_ASL_m; // Altitud sobre el nivel del mar, en metros, del despegue
 } varioConfig_td;
 
 static const varioConfig_td defaultConfig = {
@@ -33,7 +31,6 @@ static const varioConfig_td defaultConfig = {
   .sink_hz_scale = 100,
   .sink_hz_min = 100,
   .sealevel_hPa = 1014.0f,
-  .takeoff_ASL_m = 330.0f
  };
 
 // Variables shared by all tasks
