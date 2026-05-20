@@ -4,6 +4,7 @@
 #include "FreeRTOS.h"
 #include "timers.h" 
 #include "queue.h"
+#include "semphr.h"
 #include "stm32h5xx_hal.h"
 #include <stdint.h>
 #include <stdbool.h>

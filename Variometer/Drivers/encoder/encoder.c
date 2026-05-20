@@ -8,6 +8,7 @@ static TimerHandle_t encoder_PeriodicTimer = NULL;
 
 // Handle para el one-shot timer de los long-press
 static TimerHandle_t encoder_LongPressTimer = NULL;
+static SemaphoreHandle_t encoder_LongPressToken = NULL;
 
 // Variables de estado privadas
 static TIM_HandleTypeDef *encoder_TIM;
@@ -15,7 +16,6 @@ static QueueHandle_t encoder_Queue;
 static volatile uint16_t encoder_LastTIMCount = 0;
 
 static volatile uint32_t encoder_ButtonPressTime = 0;
-static volatile bool encoder_ButtonIsPressed = false;
 
 // Trigger periodicamente cada RE_POLL_INTERVAL_MS para revisar el contador del timer
 static void RE_PeriodicTimerCallback(TimerHandle_t xTimer) {
@@ -37,16 +37,12 @@ static void RE_PeriodicTimerCallback(TimerHandle_t xTimer) {
 
 // Trigger cuando el botón se mantiene apretado más de RE_LONG_PRESS_MS
 static void RE_LongPressTimerCallback(TimerHandle_t xTimer){
-    if (encoder_Queue == NULL) return;
-
-    // Si es falso, ya lo manejo el Rising Callback por un click corto
-    if (!encoder_ButtonIsPressed) return;
-
-    encoder_ButtonIsPressed = false;
-    encoderEvent_td newEvent = {ENCODER_EVENT_LONG_PRESS, 0};
-
-    // Encolar el long press, non-blocking
-    xQueueSend(encoder_Queue, &newEvent, 0); 
+    if (xSemaphoreTake(encoder_LongPressToken, 0) == pdTRUE) {
+        // Solo se encola el evento si el token está disponible
+        // lo cual significa que el botón aún no se ha liberado
+        encoderEvent_td newEvent = {ENCODER_EVENT_LONG_PRESS, 0};
+        xQueueSend(encoder_Queue, &newEvent, 0);
+    }
 }
 
 void RE_Init(TIM_HandleTypeDef *htim, QueueHandle_t eventsQueue) {
@@ -55,6 +51,9 @@ void RE_Init(TIM_HandleTypeDef *htim, QueueHandle_t eventsQueue) {
     encoder_LastTIMCount = __HAL_TIM_GET_COUNTER(encoder_TIM);
 
     encoder_Queue = eventsQueue;
+
+    // Inicializar mutex para sincronizar EXTI y Timer call-back en situación de long-press
+    encoder_LongPressToken = xSemaphoreCreateBinary();
 
     // Software timer periodico para pollear el contador del HW timer
     encoder_PeriodicTimer = xTimerCreate(
@@ -94,37 +93,36 @@ void RE_Disable_Rotations(){
 // FALLING = PRESIONADO
 void RE_EXTI_Falling_Callback(uint16_t GPIO_Pin) {
     if (GPIO_Pin != ENCODER_SW_PIN) return; 
-    // Ignorar multiples triggers si aun no fue procesado el primero
-    if (encoder_ButtonIsPressed) return;
-
     encoder_ButtonPressTime = HAL_GetTick();
-    encoder_ButtonIsPressed = true;
 
     // Iniciar one-shot timer para detectar long-press
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     xTimerStartFromISR(encoder_LongPressTimer, &xHigherPriorityTaskWoken);
+
+    // Habilitar token de un uso para que la liberación del botón sea manejada
+    // sólo por el timer o el EXTI de rising, nunca ambos
+    xSemaphoreGiveFromISR(encoder_LongPressToken, &xHigherPriorityTaskWoken);
+
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
 // RISING = LIBERADO
 void RE_EXTI_Rising_Callback(uint16_t GPIO_Pin) {
     if (GPIO_Pin != ENCODER_SW_PIN || encoder_Queue == NULL) return;
-    
-    // Si es falso, ya lo manejó el one-shot timer por long-press
-    if (!encoder_ButtonIsPressed) return;
-    
-    // Matar el one-shot timer que detectaría un long-press
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xTimerStopFromISR(encoder_LongPressTimer, &xHigherPriorityTaskWoken);
     
-    encoder_ButtonIsPressed = false;
-    
-    // Solo encolar eventos de clicks >= RE_CLICK_MS
-    if ((HAL_GetTick() - encoder_ButtonPressTime) >= RE_CLICK_MS){
-        // Sabemos que RE_CLICK_MS <= duración del click < RE_LONG_PRESS_MS
-        encoderEvent_td newEvent = {ENCODER_EVENT_CLICK, 0};
-        xQueueSendFromISR(encoder_Queue, &newEvent, &xHigherPriorityTaskWoken);
-    }
+    // Si se logra tomar el token, significa que el botón se liberó antes de que pasen RE_LONG_PRESS_MS
+    // por lo que se genera un evento de CLICK (salvo debounce)
+    if (xSemaphoreTakeFromISR(encoder_LongPressToken, &xHigherPriorityTaskWoken) == pdTRUE) {
 
+        // Matar el one-shot timer que detectaría un long-press ya que el botón se liberó antes de tiempo
+        xTimerStopFromISR(encoder_LongPressTimer, &xHigherPriorityTaskWoken);
+
+        // Solo encolar eventos de clicks >= RE_CLICK_MS
+        if ((HAL_GetTick() - encoder_ButtonPressTime) >= RE_CLICK_MS){
+            encoderEvent_td newEvent = {ENCODER_EVENT_CLICK, 0};
+            xQueueSendFromISR(encoder_Queue, &newEvent, &xHigherPriorityTaskWoken);
+        }
+    }
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
