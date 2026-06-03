@@ -28,7 +28,7 @@ void DisplayTask(void *pvParameters) {
   uint8_t hours, minutes, seconds;
   bool should_set_initial_stats = true;
   
-  char temp[21]; 
+  char temp[DISPLAY_LINE_WIDTH+1]; 
   float altitude, climb_rate, temperature;
 
   while (1) {
@@ -71,7 +71,7 @@ void DisplayTask(void *pvParameters) {
         
         // Line 1 end: Temperature
         snprintf(temp, sizeof(temp), "%.0f\xDF""C", temperature);
-        lcd_printf_at(0, 16, "%4s", temp);
+        lcd_printf_at(0, DISPLAY_LINE_WIDTH-4, "%4s", temp);
 
         // Line 2: Estimated ltitude over sea level
         snprintf(temp, sizeof(temp), "A: %.0fm", altitude);
@@ -88,7 +88,7 @@ void DisplayTask(void *pvParameters) {
         lcd_printf_at(2, 0, "%-20s", temp);
 
         // Line 4: Estimated altitude over takeoff
-        snprintf(temp, sizeof(temp), "Despegue: %+.0fm", altitude-takeoff_ASL_m);
+        snprintf(temp, sizeof(temp), "Despegue: %+.0fm", altitude - takeoff_ASL_m);
         lcd_printf_at(3, 0, "%-20s", temp);
 
         break;

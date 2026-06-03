@@ -68,7 +68,7 @@ typedef struct {
   union {
     genericSensorData_td varioData; // Solo para comandos de tipo DISPLAY_UPDATE_VARIO
     struct {
-      char lines[4][20];
+      char lines[4][21];
       uint8_t selectedLine;
     } menuData; // Para comandos de tipo DISPLAY_UPDATE_MENU
   };
