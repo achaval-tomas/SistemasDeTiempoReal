@@ -27,8 +27,6 @@ void DisplayTask(void *pvParameters) {
   uint16_t takeoff_ASL_m = 0;
   uint8_t hours, minutes, seconds;
   bool should_set_initial_stats = true;
-  
-  char temp[DISPLAY_LINE_WIDTH+1]; 
   float altitude, climb_rate, temperature;
 
   while (1) {
@@ -58,38 +56,28 @@ void DisplayTask(void *pvParameters) {
           should_set_initial_stats = false;
         }
 
+        
+        // Line 1: Time and temperature
+        temperature = disData.varioData.temperature_C;
+        get_elapsed_time(flight_start_tick, &hours, &minutes, &seconds);
+        lcd_printf_at(0, 0, "%02u:%02u:%02u       %3.0f\xDF""C", hours, minutes, seconds, temperature);
+        
+        // Line 2: Estimated ltitude over sea level
         altitude = bmp280_estimate_altitude(disData.varioData.pressure_Pa, disData.varioData.temperature_C, varioConfig.sealevel_hPa*100);
+        lcd_printf_at(1, 0, "A: %.0fm     ", altitude);
+        
+        // Line 3: Climb Rate
         climb_rate = disData.varioData.climb_rate_mps;
         if (absf(climb_rate) < 0.1f) climb_rate = 0.0f; // Deadzone for small climb rates
-
-        temperature = disData.varioData.temperature_C;
-
-        // Line 1 start: Time since start
-        get_elapsed_time(flight_start_tick, &hours, &minutes, &seconds);
-        snprintf(temp, sizeof(temp), "%02u:%02u:%02u", hours, minutes, seconds);
-        lcd_printf_at(0, 0, "%-16s", temp);
-        
-        // Line 1 end: Temperature
-        snprintf(temp, sizeof(temp), "%.0f\xDF""C", temperature);
-        lcd_printf_at(0, DISPLAY_LINE_WIDTH-4, "%4s", temp);
-
-        // Line 2: Estimated ltitude over sea level
-        snprintf(temp, sizeof(temp), "A: %.0fm", altitude);
-        lcd_printf_at(1, 0, "%-20s", temp);
-
-        // Line 3: Climb Rate
         uint8_t arrow_char = (
-             (climb_rate >= varioConfig.lift_threshold) ? CHAR_UP_ARROW
+          (climb_rate >= varioConfig.lift_threshold) ? CHAR_UP_ARROW
           : ((climb_rate <= varioConfig.sink_threshold) ? CHAR_DOWN_ARROW 
           : ' ')
         );
-
-        snprintf(temp, sizeof(temp), "V: %+.1fm/s %c", climb_rate, arrow_char);
-        lcd_printf_at(2, 0, "%-20s", temp);
+        lcd_printf_at(2, 0, "V: %+.1fm/s %c     ", climb_rate, arrow_char);
 
         // Line 4: Estimated altitude over takeoff
-        snprintf(temp, sizeof(temp), "Despegue: %+.0fm", altitude - takeoff_ASL_m);
-        lcd_printf_at(3, 0, "%-20s", temp);
+        lcd_printf_at(3, 0, "Despegue: %+.0fm      ", altitude - takeoff_ASL_m);
 
         break;
 
