@@ -13,19 +13,12 @@ TaskHandle_t sensor_task_handle = NULL;
 QueueHandle_t buzzerQueue = NULL, displayQueue = NULL, encoderEventQueue = NULL;
 
 // Inicializar configuración del variometro, después será manejada y leida por los tasks
-varioConfig_td varioConfig = {
-  .sensitivity = 4,
-  .lift_threshold = 0.2f,
-  .sink_threshold = -0.3f,
-  .lift_hz_base = 800,
-  .lift_hz_scale = 100,
-  .sink_hz_base = 300,
-  .sink_hz_scale = 100,
-  .sink_hz_min = 100,
-  .sealevel_hPa = 1014.0f
-};
+varioConfig_td varioConfig = {0};
 
 void start_variometer(void){
+    // Cargar configuración por defecto al iniciar el variometro
+    varioConfig = defaultConfig;
+
     // Create queues for task communication, mostly used as mutexes
     buzzerQueue = xQueueCreate(1, sizeof(buzzerQueueData_td));
     displayQueue = xQueueCreate(1, sizeof(displayQueueData_td));
