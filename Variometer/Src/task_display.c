@@ -54,19 +54,11 @@ void DisplayTask(void *pvParameters) {
         // to show time since takeoff and altitude over takeoff
         if (should_set_initial_stats) {
           flight_start_tick = xTaskGetTickCount();
-          takeoff_ASL_m = bmp280_estimate_altitude(
-            disData.varioData.pressure_Pa,
-            disData.varioData.temperature_C,
-            varioConfig.sealevel_hPa*100
-          );
+          takeoff_ASL_m = bmp280_estimate_altitude(disData.varioData.pressure_Pa, disData.varioData.temperature_C, varioConfig.sealevel_hPa*100);
           should_set_initial_stats = false;
         }
 
-        altitude = bmp280_estimate_altitude(
-          disData.varioData.pressure_Pa,
-          disData.varioData.temperature_C,
-          varioConfig.sealevel_hPa*100
-        );
+        altitude = bmp280_estimate_altitude(disData.varioData.pressure_Pa, disData.varioData.temperature_C, varioConfig.sealevel_hPa*100);
         climb_rate = disData.varioData.climb_rate_mps;
         if (absf(climb_rate) < 0.1f) climb_rate = 0.0f; // Deadzone for small climb rates
 

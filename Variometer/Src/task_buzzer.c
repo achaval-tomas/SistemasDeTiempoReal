@@ -94,12 +94,7 @@ void BuzzerTask(void *pvParameters){
     switch(bqData.type){
       case BUZZ_VARIO:
         // Beep according to climb rate
-        get_buzz_params(
-          bqData.vario_climb_rate,
-          &frequencyHZ,
-          &durationMS,
-          &silenceMS
-        );
+        get_buzz_params(bqData.vario_climb_rate, &frequencyHZ, &durationMS, &silenceMS);
         
         if (frequencyHZ != 0){
           Buzzer(frequencyHZ, durationMS);
