@@ -54,6 +54,7 @@ void DisplayTask(void *pvParameters) {
           flight_start_tick = xTaskGetTickCount();
           takeoff_ASL_m = bmp280_estimate_altitude(disData.varioData.pressure_Pa, disData.varioData.temperature_C, varioConfig.sealevel_hPa*100);
           should_set_initial_stats = false;
+          lcd_clear();
         }
 
         
