@@ -7,7 +7,7 @@
 // ASSUMES TIM2 CONFIGURED FOR PWM AT 1 000 000 TICKS/SEC
 void buzz_init();
 
-void buzz_start(uint32_t frequencyHZ);
+void buzz_start(uint32_t frequencyHZ, uint8_t volume);
 void buzz_stop();
 
 #endif // BUZZER_H

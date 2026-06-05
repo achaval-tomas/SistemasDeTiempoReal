@@ -50,7 +50,7 @@ void Buzzer(uint32_t frequencyHZ, uint32_t durationMS){
   if (frequencyHZ == 0 || durationMS == 0) return;
 
   // Beep at the specified frequency and duration
-  buzz_start(frequencyHZ);
+  buzz_start(frequencyHZ, (uint8_t)varioConfig.volume);
   vTaskDelay(pdMS_TO_TICKS(durationMS));
   buzz_stop();
 }
