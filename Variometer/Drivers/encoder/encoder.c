@@ -97,7 +97,7 @@ void RE_EXTI_Falling_Callback(uint16_t GPIO_Pin) {
 
     // Iniciar one-shot timer para detectar long-press
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xTimerStartFromISR(encoder_LongPressTimer, &xHigherPriorityTaskWoken);
+    xTimerResetFromISR(encoder_LongPressTimer, &xHigherPriorityTaskWoken);
 
     // Habilitar token de un uso para que la liberación del botón sea manejada
     // sólo por el timer o el EXTI de rising, nunca ambos
