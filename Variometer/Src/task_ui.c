@@ -208,7 +208,7 @@ void update_display(systemState_td currentState, uint8_t menuIndex){
             if (menu[menuIndex].setting.type == FLOAT) {
                 snprintf(valStr, sizeof(valStr), "     > %.2f <    ", *(menu[menuIndex].setting.ptr));
             } else {
-                snprintf(valStr, sizeof(valStr), "     > %.0f <    ", *(menu[menuIndex].setting.ptr));
+                snprintf(valStr, sizeof(valStr), "      > %.0f <    ", *(menu[menuIndex].setting.ptr));
             }
             
             // Linea 3: El valor formateado
