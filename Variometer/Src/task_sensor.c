@@ -95,7 +95,6 @@ void apply_kalman_filter(float new_pressure) {
 // Update pressure and temperature data at a fixed rate
 void BMP280Task(void *pvParameters) {
     bmp280_td bmp280 = {0};
-    sensorQueueData_td sensorQueueData = {0};
     buzzerQueueData_td buzzMsg = {0};
     displayQueueData_td dispMsg = {0};
     TickType_t lastTick;
