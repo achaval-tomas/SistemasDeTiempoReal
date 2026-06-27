@@ -124,22 +124,24 @@ sensor_off:
 
     lastTick = xTaskGetTickCount();
     
+    // De aquí en adelante, los mensajes tienen siempre el mismo tipo hasta el shutdown
+    buzzMsg.type = BUZZ_VARIO;
+    dispMsg.type = DISPLAY_UPDATE_VARIO;
+    
     while (1) {
         bmp280_read_data(&bmp280);
         apply_kalman_filter(bmp280.pressure_Pa);
-
-        sensorQueueData.pressure_Pa = sState.pressure;
-        sensorQueueData.temperature_C = bmp280.temperature_C;
-        sensorQueueData.climb_rate_mps = sState.climb_rate;
         
-        // Encolar los datos a la tarea del buzzer
-        buzzMsg.type = BUZZ_VARIO;
-        buzzMsg.vario_climb_rate = sensorQueueData.climb_rate_mps;
+        // Encolar los datos nuevos a la tarea del buzzer
+        buzzMsg.vario_climb_rate = sState.climb_rate;
         xQueueOverwrite(buzzerQueue, &buzzMsg);
 
-        // Encolar los datos a la tarea del display
-        dispMsg.type = DISPLAY_UPDATE_VARIO;
-        dispMsg.varioData = (genericSensorData_td)sensorQueueData;
+        // Encolar los datos nuevos a la tarea del display
+        dispMsg.varioData = (genericSensorData_td){
+            .pressure_Pa = sState.pressure,
+            .temperature_C = bmp280.temperature_C,
+            .climb_rate_mps = sState.climb_rate
+        };
         xQueueOverwrite(displayQueue, &dispMsg);
 
         vTaskDelayUntil(&lastTick, sensorDelayTicks);
