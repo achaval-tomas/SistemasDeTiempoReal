@@ -1,5 +1,6 @@
 #include "my_tasks.h"
 #include "buzzer.h"
+#include "vario_config.h"
 #include <stdint.h>
 
 void get_buzz_params(float climb_rate, uint32_t *frequencyHZ, uint32_t *durationMS, uint32_t *silenceMS){
@@ -101,6 +102,11 @@ void BuzzerTask(void *pvParameters){
           vTaskDelay(pdMS_TO_TICKS(silenceMS));
         }
         
+        break;
+
+      case BUZZ_NEW_VOLUME:
+        // Beep to indicate new volume level
+        Buzzer((uint32_t)(varioConfig.lift_hz_base), 200);
         break;
 
       case BUZZ_STARTUP:

@@ -33,7 +33,8 @@ void BMP280Task(void *pvParameters);
 typedef enum {
   BUZZ_VARIO = 0,
   BUZZ_STARTUP = 1,
-  BUZZ_SHUTDOWN = 2
+  BUZZ_SHUTDOWN = 2,
+  BUZZ_NEW_VOLUME = 3
 } buzzerCommandType_td;
 
 typedef struct {

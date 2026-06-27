@@ -287,6 +287,12 @@ void update_setting(int16_t delta, const menuItem_td *item){
     } else if (*valPtr < (item->setting.min)) {
         *valPtr = item->setting.min;
     }
+
+    // If setting was volume, notify buzzer task to play a beep
+    if (valPtr == &(varioConfig.volume)) {
+        buzzerQueueData_td bqData = {BUZZ_NEW_VOLUME, 0.0f};
+        xQueueSend(buzzerQueue, &bqData, portMAX_DELAY);
+    }
 }
 
 // Acciones
