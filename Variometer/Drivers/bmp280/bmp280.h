@@ -66,6 +66,18 @@ void bmp280_init(bmp280_settings_td settings);
 void bmp280_init_default();
 
 /*
+    Puts the sensor in sleep mode to save power.
+    MUST BE PREVIOUSLY INITIALIZED
+*/
+void bmp280_sleep();
+
+/*
+    Switches the sensor from sleep mode into the last provided configuration.
+    MUST BE PREVIOUSLY INITIALIZED
+*/
+void bmp280_resume();
+
+/*
     Reads raw data from the sensor, applies compensation formulas and fills
     the provided structure with temperature in Celsius and pressure in Pascals.
     Must be called after bmp280_init() to get valid readings.

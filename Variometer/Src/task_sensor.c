@@ -42,7 +42,7 @@ float get_real_sensitivity(uint8_t user_level) {
     return sensitivity_map[user_level - 1];
 }
 
-// Initialize pressure value at 3 second average pressure
+// Inicializa los parámetros del filtro con un promedio de 30 lecturas del sensor.
 void initialize_kalman(){
     bmp280_td bmp280 = {0};
     float pressSum = 0.0f;
@@ -55,7 +55,7 @@ void initialize_kalman(){
     
     sState.pressure = pressSum / 30;
     
-    // Set sensitivity according to mapped user choice
+    // Aplicar la sensibilidad definida por el usuario
     sState.Q[1] = get_real_sensitivity(varioConfig.sensitivity);
 }
 
@@ -72,7 +72,7 @@ void apply_kalman_filter(float new_pressure) {
     float P10 = sState.P[1][0] + dt_s * sState.P[1][1];
     float P11 = sState.P[1][1] + sState.Q[1];
 
-    // ACTUALIZACIÓN (Ganancia de Kalman)
+    // "Ganancia de Kalman"
     float S = P00 + sState.R;
     float K0 = P00 / S;
     float K1 = P10 / S;
@@ -92,22 +92,27 @@ void apply_kalman_filter(float new_pressure) {
     sState.P[1][1] = P11 - (K1 * P01);
 }
 
-// Update pressure and temperature data at a fixed rate
+// Obtiene y filtra datos del sensor BMP280 para enviarlos a las tareas de buzzer y display
 void BMP280Task(void *pvParameters) {
     bmp280_td bmp280 = {0};
     buzzerQueueData_td buzzMsg = {0};
     displayQueueData_td dispMsg = {0};
     TickType_t lastTick;
     const TickType_t sensorDelayTicks = pdMS_TO_TICKS(SENSOR_DT_MS);
-
+    
+    // Inicializar el sensor con los parámetros deseados
     bmp280_init((bmp280_settings_td){
       .config = BMP_STANDBY_0_5ms | BMP_FILTER_OFF,
       .ctrl_meas = BMP_T_OSRS_1 | BMP_P_OSRS_16 | BMP_MODE_NORMAL
     });
 
+    // Poner el sensor en modo sleep para ahorrar energía hasta que sea necesario
+    bmp280_sleep();
+
 sensor_off:
-    // Wait until wake-up notification is received from variometer UI
+    // Esperar notificación de inicio de vuelo
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    bmp280_resume();
     
     // Notificar a la tarea del buzzer para que inicie
     buzzMsg.type = BUZZ_STARTUP;
@@ -117,8 +122,8 @@ sensor_off:
     dispMsg.type = DISPLAY_START_FLIGHT;
     xQueueOverwrite(displayQueue, &dispMsg);
 
-    // Get a stable pressure reading before applying filters
-    // and update sensitivity if needed
+    // Obtener un primer valor de presión estabilizado
+    // e inicializar los parámetros del filtro de Kalman
     initialize_kalman();
 
     lastTick = xTaskGetTickCount();
@@ -150,6 +155,9 @@ sensor_off:
             // Notificar al buzzer para que haga el sonido de fin de vuelo
             buzzMsg.type = BUZZ_SHUTDOWN;
             xQueueOverwrite(buzzerQueue, &buzzMsg);
+
+            // Dejar de hacer mediciones para ahorrar energía
+            bmp280_sleep();
 
             goto sensor_off;
         }

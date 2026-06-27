@@ -36,6 +36,10 @@ typedef struct {
 
 // Private global variable to hold calibration data
 static bmp280_calib_data_td calib = {0};
+static bmp280_settings_td bmp_settings = {0};
+
+#define CONFIG_REG 0xF5
+#define CTRL_MEAS_REG 0xF4
 
 // Private helper function prototypes
 void bmp280_calibrate();
@@ -64,6 +68,7 @@ void bmp280_calibrate(){
 void bmp280_init(bmp280_settings_td settings){
     HAL_StatusTypeDef res;
     uint8_t id = 0;
+    bmp_settings = settings;
     
     // Check if sensor is connected by reading the ID register
     res = HAL_I2C_Mem_Read(&hi2c1, BMP280_ADDR << 1, 0xD0, 1, &id, 1, 100);
@@ -93,24 +98,34 @@ void bmp280_init(bmp280_settings_td settings){
     bmp280_calibrate();
 
     // Apply configuration parameters
-    HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, 0xF5, 1, &settings.config, 1, 100);
+    HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, CONFIG_REG, 1, &settings.config, 1, 100);
     
     if (((settings.ctrl_meas & 0b11) == 0b01) || ((settings.ctrl_meas & 0b11) == 0b10)) {
       // If forced mode is selected, clear mode bits to start with sensor off
       // because it will be triggered by read_data calls.
       settings.ctrl_meas &= 0b11111100;
     }
-    HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, 0xF4, 1, &settings.ctrl_meas, 1, 100);
+    HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, CTRL_MEAS_REG, 1, &settings.ctrl_meas, 1, 100);
 
     printf("BMP280 initialized successfully!\n");
-  }
+}
 
-  void bmp280_init_default(){
-    bmp280_init((bmp280_settings_td){
-      .config = BMP_STANDBY_0_5ms | BMP_FILTER_OFF, // standby 0.5ms, filter OFF
-      .ctrl_meas = BMP_T_OSRS_1 | BMP_P_OSRS_16 | BMP_MODE_NORMAL // temp x1, pressure x16, normal mode
-    });
-  }
+
+void bmp280_init_default(){
+  bmp280_init((bmp280_settings_td){
+    .config = BMP_STANDBY_0_5ms | BMP_FILTER_OFF, // standby 0.5ms, filter OFF
+    .ctrl_meas = BMP_T_OSRS_1 | BMP_P_OSRS_16 | BMP_MODE_NORMAL // temp x1, pressure x16, normal mode
+  });
+}
+
+void bmp280_sleep(){
+  uint8_t mode_off = (bmp_settings.ctrl_meas & 0b11111100) | BMP_MODE_SLEEP;
+  HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, CTRL_MEAS_REG, 1, &mode_off, 1, 100);
+}
+
+void bmp280_resume(){
+  HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, CTRL_MEAS_REG, 1, &bmp_settings.ctrl_meas, 1, 100);
+}
 
 // Always use before pressure compensation to update t_fine
 float compensate_temperature_data(int32_t adc_T){
