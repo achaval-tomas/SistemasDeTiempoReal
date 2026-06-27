@@ -45,7 +45,7 @@ void DisplayTask(void *pvParameters) {
           else
             lcd_printf_at(i, 0, "%-20s", disData.menuData.lines[i]);
         }
-      break;
+        break;
       
       case DISPLAY_UPDATE_VARIO:
         // Set initial stats at the start of the flight
@@ -56,7 +56,6 @@ void DisplayTask(void *pvParameters) {
           should_set_initial_stats = false;
           lcd_clear();
         }
-
         
         // Line 1: Time and temperature
         temperature = disData.varioData.temperature_C;
