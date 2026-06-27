@@ -133,6 +133,17 @@ sensor_off:
     dispMsg.type = DISPLAY_UPDATE_VARIO;
     
     while (1) {
+        // Revisar si se debe frenar
+        if (ulTaskNotifyTake(pdTRUE, 0) != 0) {
+            // Notificar al buzzer para que haga el sonido de fin de vuelo
+            buzzMsg.type = BUZZ_SHUTDOWN;
+            xQueueOverwrite(buzzerQueue, &buzzMsg);
+
+            // Dejar de hacer mediciones para ahorrar energía
+            bmp280_sleep();
+            goto sensor_off;
+        }
+
         bmp280_read_data(&bmp280);
         apply_kalman_filter(bmp280.pressure_Pa);
         
@@ -149,17 +160,5 @@ sensor_off:
         xQueueOverwrite(displayQueue, &dispMsg);
 
         vTaskDelayUntil(&lastTick, sensorDelayTicks);
-
-        // Revisar si se debe frenar
-        if (ulTaskNotifyTake(pdTRUE, 0) != 0) {
-            // Notificar al buzzer para que haga el sonido de fin de vuelo
-            buzzMsg.type = BUZZ_SHUTDOWN;
-            xQueueOverwrite(buzzerQueue, &buzzMsg);
-
-            // Dejar de hacer mediciones para ahorrar energía
-            bmp280_sleep();
-
-            goto sensor_off;
-        }
     }
 }
