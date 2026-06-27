@@ -27,7 +27,7 @@ static void RE_PeriodicTimerCallback(TimerHandle_t xTimer) {
     
     if (steps != 0) {
         // Encolar el evento de rotación, non-blocking
-        encoderEvent_td newEvent = {ENCODER_EVENT_ROTATION, steps};
+        encoderEvent_td newEvent = {.type = ENCODER_EVENT_ROTATION, .delta = steps};
         xQueueSend(encoder_Queue, &newEvent, 0);
 
         // Actualizar LastTIMCount sumando pasos ya procesados
@@ -40,7 +40,7 @@ static void RE_LongPressTimerCallback(TimerHandle_t xTimer){
     if (xSemaphoreTake(encoder_LongPressToken, 0) == pdTRUE) {
         // Solo se encola el evento si el token está disponible
         // lo cual significa que el botón aún no se ha liberado
-        encoderEvent_td newEvent = {ENCODER_EVENT_LONG_PRESS, 0};
+        encoderEvent_td newEvent = {.type = ENCODER_EVENT_LONG_PRESS, .delta = 0};
         xQueueSend(encoder_Queue, &newEvent, 0);
     }
 }
@@ -120,7 +120,7 @@ void RE_EXTI_Rising_Callback(uint16_t GPIO_Pin) {
 
         // Solo encolar eventos de clicks >= RE_CLICK_MS
         if ((HAL_GetTick() - encoder_ButtonPressTime) >= RE_CLICK_MS){
-            encoderEvent_td newEvent = {ENCODER_EVENT_CLICK, 0};
+            encoderEvent_td newEvent = {.type = ENCODER_EVENT_CLICK, .delta = 0};
             xQueueSendFromISR(encoder_Queue, &newEvent, &xHigherPriorityTaskWoken);
         }
     }
