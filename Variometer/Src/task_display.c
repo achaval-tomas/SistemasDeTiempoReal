@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "stdbool.h"
 #include <stdio.h>
-#include "bmp280.h" // for altitude estimation service
+#include "bmp280.h" // Para estimaciones de altitud
 #include "portmacrocommon.h"
 
 float absf(float x) {
@@ -38,7 +38,7 @@ void DisplayTask(void *pvParameters) {
         break;
 
       case DISPLAY_UPDATE_MENU:
-        // update the rows according to menu data
+        // Actualizar la pantalla con el menú, mostrando hasta 4 lineas y un indicador de la linea seleccionada
         for (uint8_t i = 0; i<DISPLAY_LINE_COUNT; ++i){
           if (i == disData.menuData.selectedLine)
             lcd_printf_at(i, 0, "%c %-18s", CHAR_RIGHT_POINTER, disData.menuData.lines[i]);
@@ -48,8 +48,7 @@ void DisplayTask(void *pvParameters) {
         break;
       
       case DISPLAY_UPDATE_VARIO:
-        // Set initial stats at the start of the flight
-        // to show time since takeoff and altitude over takeoff
+        // Establecer los datos al momento del despegue si es la primera vez que se entra en DISPLAY_UPDATE_VARIO
         if (should_set_initial_stats) {
           flight_start_tick = xTaskGetTickCount();
           takeoff_ASL_m = bmp280_estimate_altitude(disData.varioData.pressure_Pa, disData.varioData.temperature_C, varioConfig.sealevel_hPa*100);
@@ -57,18 +56,18 @@ void DisplayTask(void *pvParameters) {
           lcd_clear();
         }
         
-        // Line 1: Time and temperature
+        // Linea 1: Tiempo y temperatura
         temperature = disData.varioData.temperature_C;
         get_elapsed_time(flight_start_tick, &hours, &minutes, &seconds);
         lcd_printf_at(0, 0, "%02u:%02u:%02u       %3.0f\xDF""C", hours, minutes, seconds, temperature);
         
-        // Line 2: Estimated ltitude over sea level
+        // Linea 2: ASL estimada
         altitude = bmp280_estimate_altitude(disData.varioData.pressure_Pa, disData.varioData.temperature_C, varioConfig.sealevel_hPa*100);
         lcd_printf_at(1, 0, "A: %.0fm     ", altitude);
         
-        // Line 3: Climb Rate
+        // Linea 3: Vario y flecha de dirección
         climb_rate = disData.varioData.climb_rate_mps;
-        if (absf(climb_rate) < 0.1f) climb_rate = 0.0f; // Deadzone for small climb rates
+        if (absf(climb_rate) < 0.1f) climb_rate = 0.0f; // Deadzone para climb-rates bajos
         uint8_t arrow_char = (
           (climb_rate >= varioConfig.lift_threshold) ? CHAR_UP_ARROW
           : ((climb_rate <= varioConfig.sink_threshold) ? CHAR_DOWN_ARROW 
@@ -76,9 +75,8 @@ void DisplayTask(void *pvParameters) {
         );
         lcd_printf_at(2, 0, "V: %+.1fm/s %c     ", climb_rate, arrow_char);
 
-        // Line 4: Estimated altitude over takeoff
+        // Linea 4: Altura relativa al despegue
         lcd_printf_at(3, 0, "Despegue: %+.0fm      ", altitude - takeoff_ASL_m);
-
         break;
 
       case DISPLAY_CLEAR:
@@ -98,11 +96,11 @@ void DisplayTask(void *pvParameters) {
         break;
 
       default:
-        // ignore
+        // ignorar
         break;
     }
 
-    // Update at most every 200ms
+    // Actualizar, a lo sumo, cada 200ms
     vTaskDelayUntil(&lastTick, dislpayDT_ticks);
   }
 }
