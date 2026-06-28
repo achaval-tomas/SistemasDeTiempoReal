@@ -6,27 +6,22 @@
 void get_buzz_params(float climb_rate, uint32_t *frequencyHZ, uint32_t *durationMS, uint32_t *silenceMS){
     if (frequencyHZ == NULL || durationMS == NULL || silenceMS == NULL) return;
 
-    uint32_t freq = 0, duration = 0, silence = 0; // no values if thresholds are not exceeded
+    // Valores en 0, no serán modificados si no se cumplen las condiciones de lift/sink
+    uint32_t freq = 0, duration = 0, silence = 0;
     float delta_rate = 0.0f;
 
-    // Calculate parameters adjusted by distance from thresholds
+    // Calcular los parámetros del "beep" según el climb_rate y los umbrales configurados
     if (climb_rate >= varioConfig.lift_threshold) {
-
-        // Calculate lift beep frequency
         delta_rate = climb_rate - varioConfig.lift_threshold;
         freq = (uint32_t)(varioConfig.lift_hz_base + (delta_rate * varioConfig.lift_hz_scale));
 
-        // Calculate lift beep duration
         duration = 400 - (uint32_t)((climb_rate - varioConfig.lift_threshold) * 100);
         duration = (duration < 50) ? 50 : duration;
 
-        // Calculate silence between lift beeps
         silence = 50 - (uint32_t)((climb_rate-varioConfig.lift_threshold) * 10);
         silence = (silence < 10) ? 10 : silence;
 
     } else if (climb_rate <= varioConfig.sink_threshold) {
-
-        // Calculate sink beep frequency
         delta_rate = varioConfig.sink_threshold - climb_rate;
         freq = (uint32_t)(varioConfig.sink_hz_base + (delta_rate * varioConfig.sink_hz_scale));
 
@@ -34,10 +29,7 @@ void get_buzz_params(float climb_rate, uint32_t *frequencyHZ, uint32_t *duration
             freq = (uint32_t)varioConfig.sink_hz_min;
         }
 
-        // Calculate sink beep duration
         duration = 500;
-
-        // Calculate silence between sink beeps
         silence = 100;
     }
 
@@ -47,10 +39,9 @@ void get_buzz_params(float climb_rate, uint32_t *frequencyHZ, uint32_t *duration
 }
 
 void Buzzer(uint32_t frequencyHZ, uint32_t durationMS){
-  // Skip invalid inputs
   if (frequencyHZ == 0 || durationMS == 0) return;
 
-  // Beep at the specified frequency and duration
+  // Emitir el sonido con la frecuencia y duración especificadas, usando el volumen configurado
   buzz_start(frequencyHZ, (uint8_t)varioConfig.volume);
   vTaskDelay(pdMS_TO_TICKS(durationMS));
   buzz_stop();
@@ -60,8 +51,8 @@ void PlayStartupTune(){
   uint32_t frequencyHZ, durationMS;
 
   for (int i = 0; i < 3; i++){
-    frequencyHZ = 500 + i*200; // Ascending frequencies
-    durationMS = 250 - i*50; // Decreasing duration
+    frequencyHZ = 500 + i*200;
+    durationMS = 250 - i*50;
 
     Buzzer(frequencyHZ, durationMS);
     if (i == 2) break;
@@ -73,8 +64,8 @@ void PlaySwitchOffTune(){
   uint32_t frequencyHZ, durationMS;
 
   for (int i = 0; i < 4; i++){
-    frequencyHZ = 1000 - i*200; // Descending frequencies
-    durationMS = 100 + i*10; // Increasing duration
+    frequencyHZ = 1000 - i*200;
+    durationMS = 100 + i*10;
 
     Buzzer(frequencyHZ, durationMS);
     if (i == 3) break;
@@ -83,7 +74,7 @@ void PlaySwitchOffTune(){
 }
 
 void BuzzerTask(void *pvParameters){
-  // Start PWM signal at 0% "volume"
+  // Inicia señal PWM sin volumen
   buzz_init();
 
   buzzerQueueData_td bqData;
@@ -94,9 +85,8 @@ void BuzzerTask(void *pvParameters){
 
     switch(bqData.type){
       case BUZZ_VARIO:
-        // Beep according to climb rate
+
         get_buzz_params(bqData.vario_climb_rate, &frequencyHZ, &durationMS, &silenceMS);
-        
         if (frequencyHZ != 0){
           Buzzer(frequencyHZ, durationMS);
           vTaskDelay(pdMS_TO_TICKS(silenceMS));
@@ -105,7 +95,7 @@ void BuzzerTask(void *pvParameters){
         break;
 
       case BUZZ_NEW_VOLUME:
-        // Beep to indicate new volume level
+        // Beep para que el usuario sepa que el volumen cambió
         Buzzer((uint32_t)(varioConfig.lift_hz_base), 200);
         break;
 
@@ -118,7 +108,7 @@ void BuzzerTask(void *pvParameters){
         break;
 
       default:
-        // ignore
+        // ignorar
         break;
     }
   }
