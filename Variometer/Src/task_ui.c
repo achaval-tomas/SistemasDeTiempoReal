@@ -21,13 +21,13 @@ typedef enum {
     ITEM_TYPE_SETTING   // Modifica un valor de configuracion
 } itemType_td;
 
-// Typo de funciones de callback, deben devolver el estado al que transicionan
+// Tipo de funciones de callback, deben devolver el estado al que transicionan
 typedef systemState_td (*menuAction_td)(void); 
 
 typedef enum {
     FLOAT,
     INT
-} settingType_td; // whether to display as float or int
+} settingType_td; // para mostrar configuraciones como float o int
 
 // Formato de cada item del menú
 typedef struct {
@@ -47,7 +47,6 @@ typedef struct {
 
 // Funciones auxiliares
 void update_display(systemState_td state, uint8_t menuIndex);
-void end_flight(void);
 
 // Funciones que responden a las acciones del encoder
 systemState_td start_flight_action(void);
@@ -88,9 +87,7 @@ void UITask(void *pvParameters) {
 
 system_OFF:
     // Esperar una pulsacion larga para encenderse
-    while (!is_long_press(event)) {
-        xQueueReceive(encoderEventQueue, &event, portMAX_DELAY);
-    }
+    do xQueueReceive(encoderEventQueue, &event, portMAX_DELAY); while (!is_long_press(event));
 
     currentState = STATE_MAIN_MENU;
     menuIndex = 0;
@@ -99,9 +96,9 @@ system_OFF:
     // Habilitar la lectura de rotaciones del encoder
     RE_Enable_Rotations();
 
+    // Dar tiempo a que se encienda la pantalla antes de actualizarla
     dispMsg.type = DISPLAY_ON;
     xQueueOverwrite(displayQueue, &dispMsg);
-    // Wait until display is ON
     vTaskDelay(pdMS_TO_TICKS(150));
 
     update_display(currentState, menuIndex);
@@ -115,28 +112,18 @@ system_OFF:
             
             case STATE_MAIN_MENU:
                 if (is_rotation(event)) {
-
                     menuIndex = update_index(menuIndex, event.delta, MENU_ITEMS_COUNT);
 
                 } else if (is_click(event)) {
-
                     selectedItem = &menu[menuIndex];
                     currentState = handle_menu_click(selectedItem);
 
                 } else if (is_long_press(event)) {
-
-                    // Switch display OFF
+                    // APAGADO: Apagar display y dejar de leer rotaciones
                     dispMsg.type = DISPLAY_OFF;
                     xQueueOverwrite(displayQueue, &dispMsg);
-
-                    // Remove the LONG PRESS type
-                    event.type = ENCODER_EVENT_NONE;
-
-                    // Stop checking for rotation events
                     RE_Disable_Rotations();
-
                     goto system_OFF;
-
                 }
 
                 break;
@@ -152,10 +139,16 @@ system_OFF:
             case STATE_IN_FLIGHT:
 
                 if (is_long_press(event)) {
-                    end_flight();
-
+                    /* 
+                        FIN DE VUELO
+                        Notificar a la tarea de sensado para que frene
+                        Rehabilitar la lectura de rotaciones del encoder
+                        Y volver al menú principal
+                    */ 
+                    xTaskNotifyGive(sensor_task_handle);
+                    RE_Enable_Rotations();
                     currentState = STATE_MAIN_MENU;
-                    menuIndex = 0; // Volver al menú inicial
+                    menuIndex = 0;
                 }
                 break;
         }
@@ -172,6 +165,9 @@ void update_display(systemState_td currentState, uint8_t menuIndex){
     uint8_t lineIndex;
     
     switch (currentState){
+        case STATE_IN_FLIGHT:
+            // La UI de vuelo se maneja en la tarea de display con datos del sensor 
+            break;
         case STATE_MAIN_MENU:
             max_start = (int8_t)MENU_ITEMS_COUNT - 4;
             if (max_start < 0) max_start = 0;
@@ -199,11 +195,11 @@ void update_display(systemState_td currentState, uint8_t menuIndex){
         case STATE_EDITING_SETTING:
             dispMsg.type = DISPLAY_UPDATE_MENU; 
             
-            // Line 1: Nombre de la configuración
+            // Linea 1: Nombre de la configuración
             strncpy(dispMsg.menuData.lines[0], menu[menuIndex].name, sizeof(dispMsg.menuData.lines[0]) - 1);
             dispMsg.menuData.lines[0][sizeof(dispMsg.menuData.lines[0]) - 1] = '\0';
             
-            // Format the current float value into a string for line 2
+            // Formatear el valor para la linea 3, dependiendo de si es float o int
             static char valStr[21];
             if (menu[menuIndex].setting.type == FLOAT) {
                 snprintf(valStr, sizeof(valStr), "     > %.2f <    ", *(menu[menuIndex].setting.ptr));
@@ -223,24 +219,10 @@ void update_display(systemState_td currentState, uint8_t menuIndex){
             
             xQueueOverwrite(displayQueue, &dispMsg);
             break;
-
-        case STATE_IN_FLIGHT:
-            // in-flight UI is controlled by sensor task    
-            break;
-
         default:
             break;
     }
 }
-
-void end_flight(){
-    // Notificar a la tarea de sensado para que frene
-    xTaskNotifyGive(sensor_task_handle);
-
-    // Habilitar la lectura de rotaciones del encoder
-    RE_Enable_Rotations();
-}
-
 
 // Calcula el nuevo índice con wrap-around
 uint8_t update_index(uint8_t currentIndex, int16_t delta, uint8_t maxItems) {
@@ -288,7 +270,7 @@ void update_setting(int16_t delta, const menuItem_td *item){
         *valPtr = item->setting.min;
     }
 
-    // If setting was volume, notify buzzer task to play a beep
+    // Si la configuración cambiada es el volumen, notificar a la tarea del buzzer
     if (valPtr == &(varioConfig.volume)) {
         buzzerQueueData_td bqData = {BUZZ_NEW_VOLUME, 0.0f};
         xQueueSend(buzzerQueue, &bqData, portMAX_DELAY);
@@ -296,7 +278,6 @@ void update_setting(int16_t delta, const menuItem_td *item){
 }
 
 // Acciones
-
 systemState_td start_flight_action(void) {
     // Frenar la lectura de rotaciones para reducir jitter en estado de vuelo
     RE_Disable_Rotations();
@@ -304,11 +285,11 @@ systemState_td start_flight_action(void) {
     // Notificar a la tarea de sensado para que comience
     xTaskNotifyGive(sensor_task_handle);
 
-    return STATE_IN_FLIGHT; // Transition the UI task into flight mode
+    return STATE_IN_FLIGHT; // Cambiar la UI a estado de vuelo
 }
 
 systemState_td reset_config_action(void) {
-    // Show configuration reset message for 3 seconds
+    // Mostrar por 3 segundos que la configuración fue reestablecida
     displayQueueData_td dispMsg = {0};
     dispMsg.type = DISPLAY_UPDATE_MENU;
     
@@ -322,5 +303,5 @@ systemState_td reset_config_action(void) {
     vTaskDelay(pdMS_TO_TICKS(3000));
 
     varioConfig = defaultConfig;
-    return STATE_MAIN_MENU; // Stay in the menu
+    return STATE_MAIN_MENU; // Al volver, seguir en el menú
 }
