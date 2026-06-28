@@ -111,7 +111,7 @@ void BMP280Task(void *pvParameters) {
 
 sensor_off:
     // Esperar notificación de inicio de vuelo
-    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
     bmp280_resume();
     
     // Notificar a la tarea del buzzer para que inicie
@@ -134,7 +134,7 @@ sensor_off:
     
     while (1) {
         // Revisar si se debe frenar
-        if (ulTaskNotifyTake(pdTRUE, 0) != 0) {
+        if (ulTaskNotifyTake(pdFALSE, 0) != 0) {
             // Notificar al buzzer para que haga el sonido de fin de vuelo
             buzzMsg.type = BUZZ_SHUTDOWN;
             xQueueOverwrite(buzzerQueue, &buzzMsg);
