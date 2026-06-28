@@ -3,18 +3,18 @@
 #include "portmacrocommon.h"
 #include "projdefs.h"
 
-// Holds current state and Kalman filter data
+// Estado actual y datos del filtro de Kalman
 typedef struct {
-    float pressure;     // pressure in Pa
-    float dp_dt;        // pressure rate of change in Pa/s
-    float climb_rate;   // clibm/sink in m/s
+    float pressure;     // presión en Pa
+    float dp_dt;        // derivada de la presión en Pa/s
+    float climb_rate;   // climb/sink en m/s
     float P[2][2];      // Matriz de covarianza de error
     float Q[2];         // Ruido de proceso (ajustable)
     float R;            // Ruido de medición (ajustable)
 } sensorState_td;
 
 sensorState_td sState = {
-    .pressure = 0.0f, // must be initialized to an actual pressure reading
+    .pressure = 0.0f, // DEBE SER INICIALIZADO CON UN VALOR DE PRESIÓN
     .dp_dt = 0.0f,
     .climb_rate = 0.0f,
     .P =
@@ -24,10 +24,10 @@ sensorState_td sState = {
     },
     .Q =
     {
-        0.001f, // Expected pressure variance per step
-        0.01f    // Expected dp_dt variance per step
+        0.001f,  // "Varianza" de la presión por paso
+        0.01f    // "Varianza" de la derivada de la presión por paso
     },
-    .R = 1.69f  // Sensor noise variance (RMS^2 segun bosch)
+    .R = 1.69f  // Sensor noise variance (RMS^2 según bosch)
 };
 
 static const float sensitivity_map[10] = {
@@ -110,7 +110,7 @@ void BMP280Task(void *pvParameters) {
     bmp280_sleep();
 
 sensor_off:
-    // Esperar notificación de inicio de vuelo
+    // Esperar notificación de inicio de vuelo para despertar el sensor
     ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
     bmp280_resume();
     
@@ -133,13 +133,10 @@ sensor_off:
     dispMsg.type = DISPLAY_UPDATE_VARIO;
     
     while (1) {
-        // Revisar si se debe frenar
         if (ulTaskNotifyTake(pdFALSE, 0) != 0) {
-            // Notificar al buzzer para que haga el sonido de fin de vuelo
+            // FIN DE VUELO: Notificar al buzzer y dejar de hacer mediciones
             buzzMsg.type = BUZZ_SHUTDOWN;
             xQueueOverwrite(buzzerQueue, &buzzMsg);
-
-            // Dejar de hacer mediciones para ahorrar energía
             bmp280_sleep();
             goto sensor_off;
         }
