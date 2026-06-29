@@ -23,11 +23,12 @@ typedef struct {
    uint8_t symbols[8];
 } climbHistory_td;
 
-climbHistory_td climb_history = (climbHistory_td){
+const climbHistory_td clear_history = (climbHistory_td){
     .index = 0,
     .symbols = {CHAR_NO_CLIMB, CHAR_NO_CLIMB, CHAR_NO_CLIMB, CHAR_NO_CLIMB,
                 CHAR_NO_CLIMB, CHAR_NO_CLIMB, CHAR_NO_CLIMB, CHAR_NO_CLIMB}
 };
+climbHistory_td climb_history = clear_history;
 
 // Actualizar historial de símbolos de ascenso/descenso basado en el nuevo climb rate
 void update_climb_history(float new_climb_rate) {
@@ -51,7 +52,7 @@ void DisplayTask(void *pvParameters) {
   const TickType_t dislpayDT_ticks = pdMS_TO_TICKS(DISPLAY_DT_MS);
   
   displayQueueData_td disData;
-  TickType_t lastTick = xTaskGetTickCount(), flight_start_tick = 0;
+  TickType_t flight_start_tick = 0;
   uint16_t takeoff_ASL_m = 0;
   uint8_t hours, minutes, seconds;
   bool should_set_initial_stats = true;
@@ -78,6 +79,7 @@ void DisplayTask(void *pvParameters) {
       case DISPLAY_UPDATE_VARIO:
         // Establecer los datos al momento del despegue si es la primera vez que se entra en DISPLAY_UPDATE_VARIO
         if (should_set_initial_stats) {
+          climb_history = clear_history;
           flight_start_tick = xTaskGetTickCount();
           takeoff_ASL_m = bmp280_estimate_altitude(disData.varioData.pressure_Pa, disData.varioData.temperature_C, varioConfig.sealevel_hPa*100);
           should_set_initial_stats = false;
@@ -136,7 +138,7 @@ void DisplayTask(void *pvParameters) {
         break;
     }
 
-    // Actualizar, a lo sumo, cada 200ms
-    vTaskDelayUntil(&lastTick, dislpayDT_ticks);
+    // Actualizar, a lo sumo, cada dislpayDT_ticks
+    vTaskDelay(dislpayDT_ticks);
   }
 }
