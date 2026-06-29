@@ -74,6 +74,8 @@ void DisplayTask(void *pvParameters) {
           else
             lcd_printf_at(i, 0, "%-20s", disData.menuData.lines[i]);
         }
+        if (disData.menuData.totalPages > 0)
+          lcd_printf_at(0, 17, "%u/%u", disData.menuData.currentPage, disData.menuData.totalPages);
         break;
       
       case DISPLAY_UPDATE_VARIO:

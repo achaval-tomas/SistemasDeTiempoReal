@@ -63,10 +63,10 @@ const menuItem_td menu[] = {
     {"Sensibilidad",       ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.sensitivity, 1.0f, 1.0f, 10.0f}}},
     {"Volumen",            ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.volume, 1.0f, 0.0f, 5.0f}}},
     {"Ajustar QNH",        ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.sealevel_hPa, 1.0f, 950.0f, 1300.0f}}},
-    {"Sonido subida (Hz)", ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.lift_hz_base, 10.0f, 500.0f, 1500.0f}}},
-    {"Paso subida (Hz)",   ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.lift_hz_scale, 10.0f, 0.0f, 200.0f}}},
-    {"Sonido bajada (Hz)", ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.sink_hz_base, 10.0f, 100.0f, 500.0f}}},
-    {"Paso bajada (Hz)",   ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.sink_hz_scale, 10.0f, 0.0f, 200.0f}}},
+    {"Tono lift (Hz)",     ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.lift_hz_base, 10.0f, 500.0f, 1500.0f}}},
+    {"Paso lift (Hz)",     ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.lift_hz_scale, 10.0f, 0.0f, 200.0f}}},
+    {"Tono sink (Hz)",     ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.sink_hz_base, 10.0f, 100.0f, 500.0f}}},
+    {"Paso sink (Hz)",     ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.sink_hz_scale, 10.0f, 0.0f, 200.0f}}},
     {"Reset config",       ITEM_TYPE_ACTION,  {.action = reset_config_action}}
 };
 
@@ -161,34 +161,35 @@ system_OFF:
 
 void update_display(systemState_td currentState, uint8_t menuIndex){
     displayQueueData_td dispMsg = {0};
-    int8_t max_start;
-    uint8_t lineIndex;
     
     switch (currentState){
         case STATE_IN_FLIGHT:
             // La UI de vuelo se maneja en la tarea de display con datos del sensor 
             break;
         case STATE_MAIN_MENU:
-            max_start = (int8_t)MENU_ITEMS_COUNT - 4;
-            if (max_start < 0) max_start = 0;
-            lineIndex = (menuIndex > (uint8_t)max_start) ? (uint8_t)max_start : menuIndex;
+            uint8_t currentPage = menuIndex / 4;
+            uint8_t totalPages = (MENU_ITEMS_COUNT + 3) / 4;
+            uint8_t firstItem = currentPage * 4;
 
             dispMsg.type = DISPLAY_UPDATE_MENU;
-            
-            // Cargar hasta 4 lineas
-            for(int i = 0; i < 4; i++) {
-                if ((lineIndex + i) < MENU_ITEMS_COUNT) {
-                    strncpy(dispMsg.menuData.lines[i], menu[lineIndex + i].name, sizeof(dispMsg.menuData.lines[i]) - 1);
-                    
-                    // Forzar caracter nulo al final
-                    dispMsg.menuData.lines[i][sizeof(dispMsg.menuData.lines[i]) - 1] = '\0'; 
+
+            for (uint8_t i = 0; i < 4; i++) {
+                uint8_t item = firstItem + i;
+
+                if (item < MENU_ITEMS_COUNT) {
+                    strncpy(dispMsg.menuData.lines[i],
+                            menu[item].name,
+                            sizeof(dispMsg.menuData.lines[i]) - 1);
+                    dispMsg.menuData.lines[i][sizeof(dispMsg.menuData.lines[i]) - 1] = '\0';
                 } else {
-                    // String vacio = caracter nulo al inicio
-                    dispMsg.menuData.lines[i][0] = '\0'; 
+                    dispMsg.menuData.lines[i][0] = '\0';
                 }
             }
 
-            dispMsg.menuData.selectedLine = menuIndex - lineIndex;
+            dispMsg.menuData.selectedLine = menuIndex % 4;
+            dispMsg.menuData.currentPage = currentPage + 1;
+            dispMsg.menuData.totalPages = totalPages;
+
             xQueueOverwrite(displayQueue, &dispMsg);
             break;
 
@@ -216,6 +217,7 @@ void update_display(systemState_td currentState, uint8_t menuIndex){
             dispMsg.menuData.lines[3][0] = '\0';
             
             dispMsg.menuData.selectedLine = NO_SELECTION;
+            dispMsg.menuData.totalPages = 0;
             
             xQueueOverwrite(displayQueue, &dispMsg);
             break;
@@ -298,6 +300,7 @@ systemState_td reset_config_action(void) {
     strncpy(dispMsg.menuData.lines[2], ">  Reestablecida   <", 21);
     strncpy(dispMsg.menuData.lines[3], ">                  <", 21);
     dispMsg.menuData.selectedLine = NO_SELECTION;
+    dispMsg.menuData.totalPages = 0;
 
     xQueueOverwrite(displayQueue, &dispMsg);
     vTaskDelay(pdMS_TO_TICKS(3000));

@@ -71,6 +71,8 @@ typedef struct {
     struct {
       char lines[4][21];
       uint8_t selectedLine;
+      uint8_t currentPage;
+      uint8_t totalPages;
     } menuData; // Para comandos de tipo DISPLAY_UPDATE_MENU
   };
 } displayQueueData_td;
