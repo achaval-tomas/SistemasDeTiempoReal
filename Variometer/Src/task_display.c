@@ -62,7 +62,7 @@ void DisplayTask(void *pvParameters) {
         lcd_printf_at(0, 0, "%02u:%02u:%02u       %3.0f\xDF""C", hours, minutes, seconds, temperature);
         
         // Linea 2: ASL estimada
-        altitude = bmp280_estimate_altitude(disData.varioData.pressure_Pa, disData.varioData.temperature_C, varioConfig.sealevel_hPa*100);
+        altitude = bmp280_estimate_altitude(disData.varioData.pressure_Pa, temperature, varioConfig.sealevel_hPa*100);
         lcd_printf_at(1, 0, "A: %.0fm     ", altitude);
         
         // Linea 3: Vario y flecha de dirección
