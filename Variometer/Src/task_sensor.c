@@ -7,7 +7,6 @@
 typedef struct {
     float pressure;     // presión en Pa
     float dp_dt;        // derivada de la presión en Pa/s
-    float climb_rate;   // climb/sink en m/s
     float P[2][2];      // Matriz de covarianza de error
     float Q[2];         // Ruido de proceso (ajustable)
     float R;            // Ruido de medición (ajustable)
@@ -16,7 +15,6 @@ typedef struct {
 sensorState_td sState = {
     .pressure = 0.0f, // DEBE SER INICIALIZADO CON UN VALOR DE PRESIÓN
     .dp_dt = 0.0f,
-    .climb_rate = 0.0f,
     .P =
     {
     {1.0f, 0.0f},
@@ -54,6 +52,7 @@ void initialize_kalman(){
     }
     
     sState.pressure = pressSum / 30;
+    sState.dp_dt = 0.0f;
     
     // Aplicar la sensibilidad definida por el usuario
     sState.Q[1] = get_real_sensitivity(varioConfig.sensitivity);
@@ -82,9 +81,6 @@ void apply_kalman_filter(float new_pressure) {
     sState.pressure += K0 * y;
     sState.dp_dt += K1 * y;
 
-    // Conversion de Pa/s a m/s aproximando 1m ~ 12 Pa
-    sState.climb_rate = -sState.dp_dt * 0.08333f;
-
     // Corrección de covarianza (P = (I - KH)*P)
     sState.P[0][0] = (1.0f - K0) * P00;
     sState.P[0][1] = (1.0f - K0) * P01;
@@ -94,6 +90,7 @@ void apply_kalman_filter(float new_pressure) {
 
 // Obtiene y filtra datos del sensor BMP280 para enviarlos a las tareas de buzzer y display
 void BMP280Task(void *pvParameters) {
+    float climb_rate = 0.0f;
     bmp280_td bmp280 = {0};
     buzzerQueueData_td buzzMsg = {0};
     displayQueueData_td dispMsg = {0};
@@ -144,15 +141,18 @@ sensor_off:
         bmp280_read_data(&bmp280);
         apply_kalman_filter(bmp280.pressure_Pa);
         
+        // Pascales por segundo a metros por segundo, ajustado por la presión actual.
+        climb_rate = (sState.pressure > 0.0f) ? ((-sState.dp_dt * 8434.42f) / sState.pressure) : 0.0f;
+        
         // Encolar los datos nuevos a la tarea del buzzer
-        buzzMsg.vario_climb_rate = sState.climb_rate;
+        buzzMsg.vario_climb_rate = climb_rate;
         xQueueOverwrite(buzzerQueue, &buzzMsg);
 
         // Encolar los datos nuevos a la tarea del display
         dispMsg.varioData = (genericSensorData_td){
             .pressure_Pa = sState.pressure,
             .temperature_C = bmp280.temperature_C,
-            .climb_rate_mps = sState.climb_rate
+            .climb_rate_mps = climb_rate
         };
         xQueueOverwrite(displayQueue, &dispMsg);
 
