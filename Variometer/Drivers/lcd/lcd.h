@@ -8,6 +8,11 @@
 #define CHAR_UP_ARROW (uint8_t)8
 #define CHAR_DOWN_ARROW (uint8_t)9
 #define CHAR_RIGHT_POINTER (uint8_t)10
+#define CHAR_NO_CLIMB (uint8_t)11
+#define CHAR_SMALL_CLIMB (uint8_t)12
+#define CHAR_BIG_CLIMB (uint8_t)13
+#define CHAR_MAX_CLIMB (uint8_t)14
+#define CHAR_SINK (uint8_t)15
 
 void lcd_init (void);   // initialize lcd
 

@@ -86,10 +86,70 @@ void lcd_load_custom_characters() {
         0x08, // 0 1 0 0 0
         0x00  // 0 0 0 0 0
     };
+
+    const uint8_t no_climb[8] = {
+        0b00000,
+        0b00000,
+        0b00000,
+        0b00000,
+        0b00000,
+        0b11111,
+        0b00000,
+        0b00000
+    };
+
+    const uint8_t small_climb[8] = {
+        0b00000,
+        0b00000,
+        0b00000,
+        0b01110,
+        0b11111,
+        0b11111,
+        0b00000,
+        0b00000
+    };
+
+    const uint8_t big_climb[8] = {
+        0b00000,
+        0b00000,
+        0b01110,
+        0b11111,
+        0b11111,
+        0b11111,
+        0b00000,
+        0b00000
+    };
+
+    const uint8_t max_climb[8] = {
+        0b01110,
+        0b11111,
+        0b11111,
+        0b11111,
+        0b11111,
+        0b11111,
+        0b00000,
+        0b00000
+    };
+
+    const uint8_t sink[8] = {
+        0b00000,
+        0b00000,
+        0b00000,
+        0b00000,
+        0b00000,
+        0b11111,
+        0b11111,
+        0b01110
+    };
     
     lcd_create_custom_char(CHAR_UP_ARROW, up_arrow);
     lcd_create_custom_char(CHAR_DOWN_ARROW, down_arrow);
     lcd_create_custom_char(CHAR_RIGHT_POINTER, right_pointer);
+    lcd_create_custom_char(CHAR_NO_CLIMB, no_climb);
+    lcd_create_custom_char(CHAR_SMALL_CLIMB, small_climb);
+    lcd_create_custom_char(CHAR_BIG_CLIMB, big_climb);
+    lcd_create_custom_char(CHAR_MAX_CLIMB, max_climb);
+    lcd_create_custom_char(CHAR_SINK, sink);
 }
 
 void lcd_init(void) {

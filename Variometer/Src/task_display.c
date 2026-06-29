@@ -18,6 +18,34 @@ void get_elapsed_time(TickType_t start, uint8_t *hours, uint8_t *minutes, uint8_
     *seconds = elapsed_seconds % 60;
 }
 
+typedef struct {
+   uint8_t index;
+   uint8_t symbols[8];
+} climbHistory_td;
+
+climbHistory_td climb_history = (climbHistory_td){
+    .index = 0,
+    .symbols = {CHAR_NO_CLIMB, CHAR_NO_CLIMB, CHAR_NO_CLIMB, CHAR_NO_CLIMB,
+                CHAR_NO_CLIMB, CHAR_NO_CLIMB, CHAR_NO_CLIMB, CHAR_NO_CLIMB}
+};
+
+// Actualizar historial de símbolos de ascenso/descenso basado en el nuevo climb rate
+void update_climb_history(float new_climb_rate) {
+    uint8_t new_symbol = CHAR_NO_CLIMB;
+    
+    if (new_climb_rate <= varioConfig.sink_threshold)
+        new_symbol = CHAR_SINK;
+    else if (new_climb_rate >= varioConfig.lift_threshold+1.5f)
+        new_symbol = CHAR_MAX_CLIMB;
+    else if (new_climb_rate >= varioConfig.lift_threshold+0.5f)
+        new_symbol = CHAR_BIG_CLIMB;
+    else if (new_climb_rate >= varioConfig.lift_threshold)
+        new_symbol = CHAR_SMALL_CLIMB;
+
+    climb_history.symbols[climb_history.index] = new_symbol;
+    climb_history.index = (climb_history.index + 1) % 8; // buffer circular
+}
+
 void DisplayTask(void *pvParameters) {
   lcd_init();
   const TickType_t dislpayDT_ticks = pdMS_TO_TICKS(DISPLAY_DT_MS);
@@ -65,18 +93,26 @@ void DisplayTask(void *pvParameters) {
         altitude = bmp280_estimate_altitude(disData.varioData.pressure_Pa, temperature, varioConfig.sealevel_hPa*100);
         lcd_printf_at(1, 0, "A: %.0fm     ", altitude);
         
-        // Linea 3: Vario y flecha de dirección
+        // Linea 3: Vario e historial de símbolos de ascenso/descenso
         climb_rate = disData.varioData.climb_rate_mps;
         if (absf(climb_rate) < 0.1f) climb_rate = 0.0f; // Deadzone para climb-rates bajos
+
+        update_climb_history(climb_rate);
+        lcd_printf_at(2, 0, "V: %+.1fm/s ", climb_rate);
+
+        for (int8_t i = 7; i >= 0; --i) {
+            uint8_t symbol_index = (climb_history.index + i) % 8;
+            lcd_printf_at(2, 11 + i, "%c", (char)climb_history.symbols[symbol_index]);
+        }
         uint8_t arrow_char = (
           (climb_rate >= varioConfig.lift_threshold) ? CHAR_UP_ARROW
           : ((climb_rate <= varioConfig.sink_threshold) ? CHAR_DOWN_ARROW 
           : ' ')
         );
-        lcd_printf_at(2, 0, "V: %+.1fm/s %c     ", climb_rate, arrow_char);
+        lcd_printf_at(2, 19, "%c", (char)arrow_char);
 
         // Linea 4: Altura relativa al despegue
-        lcd_printf_at(3, 0, "Despegue: %+.0fm      ", altitude - takeoff_ASL_m);
+        lcd_printf_at(3, 0, "Desp: %+.0fm      ", altitude - takeoff_ASL_m);
         break;
 
       case DISPLAY_CLEAR:
