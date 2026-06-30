@@ -177,7 +177,11 @@ void lcd_init(void) {
 }
 
 void lcd_send_string(char *str) {
-    while (*str) lcd_send_data((uint8_t)(*str++));
+    if (!str) return;
+
+    for (size_t i = 0; i < DISPLAY_LINE_WIDTH && str[i] != '\0'; i++) {
+        lcd_send_data((uint8_t)str[i]);
+    }
 }
 
 void lcd_put_cur(uint8_t row, uint8_t col) {
@@ -218,6 +222,8 @@ void lcd_printf_at(uint8_t row, uint8_t col, const char *fmt, ...) {
     va_start(args, fmt);
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
+
+    buffer[DISPLAY_LINE_WIDTH] = '\0'; // Asegurar que termine en caracter nulo
 
     lcd_send_string(buffer);
 }
