@@ -99,7 +99,7 @@ system_OFF:
     // Dar tiempo a que se encienda la pantalla antes de actualizarla
     dispMsg.type = DISPLAY_ON;
     xQueueOverwrite(displayQueue, &dispMsg);
-    vTaskDelay(pdMS_TO_TICKS(150));
+    vTaskDelay(pdMS_TO_TICKS(20));
 
     update_display(currentState, menuIndex);
     
