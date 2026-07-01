@@ -14,7 +14,6 @@
 #define CHAR_MAX_CLIMB (uint8_t)14
 #define CHAR_SINK (uint8_t)15
 
-void lcd_init_blocking(void);  // initialize lcd (usa HAL_Delay)
 void lcd_init (void);   // initialize lcd (usa vTaskDelay)
 
 void lcd_off(void);
@@ -28,7 +27,6 @@ void lcd_cursor(uint8_t mode);
 void lcd_put_cur(uint8_t row, uint8_t col);  // put cursor at the entered position
 
 void lcd_clear(void);
-void lcd_clear_blocking(void);
 void lcd_backlight(uint8_t state);
 
 // Print formatted text at specific position

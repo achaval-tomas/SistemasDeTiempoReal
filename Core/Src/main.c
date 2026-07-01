@@ -172,19 +172,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 #include "lcd.h"
 void Error_Handler(void)
 {
-    __disable_irq();
+  // Por ahora, los errores de hardware se muestran en la LCD y se detiene el sistema.
+  // En caso de que el error sea propio de la LCD, no se podrá mostrar.
+  // En un futuro, se podría agregar una led indicadora de estado.
+  lcd_printf_at(0, 0, "ERROR DE HARDWARE   ");
+  lcd_printf_at(1, 0, "Sistema detenido    ");
+  lcd_printf_at(2, 0, "Desconecte y vuelva ");
+  lcd_printf_at(3, 0, "a conectar la fuente");
 
-    // Por ahora, los errores de hardware se muestran en la LCD y se detiene el sistema.
-    // En caso de que el error sea propio de la LCD, no se podrá mostrar.
-    // En un futuro, se podría agregar una led indicadora de estado.
-    lcd_init_blocking();
-    lcd_clear_blocking();
-    lcd_printf_at(0, 0, "ERROR DE HARDWARE");
-    lcd_printf_at(1, 0, "Sistema detenido");
-    lcd_printf_at(2, 0, "Desconecte y vuelva");
-    lcd_printf_at(3, 0, "a conectar la fuente");
-
-    while (1){}
+  while (1){}
 }
 
 #ifdef USE_FULL_ASSERT
