@@ -89,4 +89,6 @@ void bmp280_read_data(bmp280_td *bmp280);
 */
 float bmp280_estimate_altitude(float pressure_Pa, float temperature_C, float seaLevelPressure_Pa);
 
+extern void Error_Handler(void);
+
 #endif /* __BMP280_H */

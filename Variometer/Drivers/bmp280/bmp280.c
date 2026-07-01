@@ -48,7 +48,9 @@ float compensate_pressure_data(int32_t adc_P);
 
 void bmp280_calibrate(){
   uint8_t data[24];
-  HAL_I2C_Mem_Read(&hi2c1, BMP280_ADDR << 1, 0x88, 1, data, 24, 100);
+  if (HAL_I2C_Mem_Read(&hi2c1, BMP280_ADDR << 1, 0x88, 1, data, 24, 100) != HAL_OK) {
+    Error_Handler();
+  }
 
   calib.dig_t1 = (data[1] << 8) | data[0];
   calib.dig_t2 = (data[3] << 8) | data[2];
@@ -66,30 +68,25 @@ void bmp280_calibrate(){
 }
 
 void bmp280_init(bmp280_settings_td settings){
-    HAL_StatusTypeDef res;
     uint8_t id = 0;
     bmp_settings = settings;
     
-    // Check if sensor is connected by reading the ID register
-    res = HAL_I2C_Mem_Read(&hi2c1, BMP280_ADDR << 1, 0xD0, 1, &id, 1, 100);
-    if (res != HAL_OK){
-      printf("Error: Failed to read from BMP280 (i2c read failed)!\n");
-      while (1);
-    } else if (id != BMP280_ID){
-      printf("Error: BMP280 not detected (wrong id)!\n");
-      while (1);
+    if (HAL_I2C_Mem_Read(&hi2c1, BMP280_ADDR << 1, 0xD0, 1, &id, 1, 100) != HAL_OK) {
+        Error_Handler();
+    } else if (id != BMP280_ID) {
+        Error_Handler();
     }
 
     // Check if sensor is ready
-    res = HAL_I2C_IsDeviceReady(&hi2c1, BMP280_ADDR << 1, 3, 100);
-    if (res != HAL_OK){
-      printf("Error: BMP280 not ready!\n");
-      while (1);
+    if (HAL_I2C_IsDeviceReady(&hi2c1, BMP280_ADDR << 1, 3, 100)!= HAL_OK) {
+        Error_Handler();
     }
     
     // Perform a soft reset to ensure proper calibration values are set
     uint8_t reset = 0xB6;
-    HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, 0xE0, 1, &reset, 1, 100);
+    if (HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, 0xE0, 1, &reset, 1, 100) != HAL_OK) {
+      Error_Handler();
+    }
   
     // Wait for reset to be done (~2ms according to Bosch)
     HAL_Delay(5);
@@ -98,16 +95,18 @@ void bmp280_init(bmp280_settings_td settings){
     bmp280_calibrate();
 
     // Apply configuration parameters
-    HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, CONFIG_REG, 1, &settings.config, 1, 100);
+    if (HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, CONFIG_REG, 1, &settings.config, 1, 100) != HAL_OK) {
+        Error_Handler();
+    }
     
     if (((settings.ctrl_meas & 0b11) == 0b01) || ((settings.ctrl_meas & 0b11) == 0b10)) {
       // If forced mode is selected, clear mode bits to start with sensor off
       // because it will be triggered by read_data calls.
       settings.ctrl_meas &= 0b11111100;
     }
-    HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, CTRL_MEAS_REG, 1, &settings.ctrl_meas, 1, 100);
-
-    printf("BMP280 initialized successfully!\n");
+    if (HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, CTRL_MEAS_REG, 1, &settings.ctrl_meas, 1, 100) != HAL_OK) {
+        Error_Handler();
+    }
 }
 
 
@@ -120,11 +119,15 @@ void bmp280_init_default(){
 
 void bmp280_sleep(){
   uint8_t mode_off = (bmp_settings.ctrl_meas & 0b11111100) | BMP_MODE_SLEEP;
-  HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, CTRL_MEAS_REG, 1, &mode_off, 1, 100);
+  if (HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, CTRL_MEAS_REG, 1, &mode_off, 1, 100) != HAL_OK) {
+      Error_Handler();
+  }
 }
 
 void bmp280_resume(){
-  HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, CTRL_MEAS_REG, 1, &bmp_settings.ctrl_meas, 1, 100);
+  if (HAL_I2C_Mem_Write(&hi2c1, BMP280_ADDR << 1, CTRL_MEAS_REG, 1, &bmp_settings.ctrl_meas, 1, 100) != HAL_OK) {
+      Error_Handler();
+  }
 }
 
 // Always use before pressure compensation to update t_fine
@@ -170,16 +173,18 @@ float compensate_pressure_data(int32_t adc_P){
 
 
 void bmp280_read_data(bmp280_td *bmp280) {
-    uint8_t data[6];
+  uint8_t data[6];
 
-    HAL_I2C_Mem_Read(&hi2c1, BMP280_ADDR << 1, 0xF7, 1, data, 6, 100);
-
-    int32_t adc_P = (data[0] << 12) | (data[1] << 4) | (data[2] >> 4);
-    int32_t adc_T = (data[3] << 12) | (data[4] << 4) | (data[5] >> 4);
-
-    bmp280->temperature_C = compensate_temperature_data(adc_T);
-    bmp280->pressure_Pa = compensate_pressure_data(adc_P);
+  if (HAL_I2C_Mem_Read(&hi2c1, BMP280_ADDR << 1, 0xF7, 1, data, 6, 100) != HAL_OK) {
+    Error_Handler();
   }
+
+  int32_t adc_P = (data[0] << 12) | (data[1] << 4) | (data[2] >> 4);
+  int32_t adc_T = (data[3] << 12) | (data[4] << 4) | (data[5] >> 4);
+
+  bmp280->temperature_C = compensate_temperature_data(adc_T);
+  bmp280->pressure_Pa = compensate_pressure_data(adc_P);
+}
 
 
 float bmp280_estimate_altitude(float pressure_Pa, float temperature_C, float seaLevelPressure_Pa) {

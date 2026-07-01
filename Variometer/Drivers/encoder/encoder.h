@@ -58,4 +58,6 @@ static inline bool is_rotation(encoderEvent_td event){
     return event.type == ENCODER_EVENT_ROTATION;
 }
 
+extern void Error_Handler(void);
+
 #endif /* RE_H */

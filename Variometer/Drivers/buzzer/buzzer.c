@@ -4,7 +4,9 @@
 
 void buzz_init(){
     __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 0);
-    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+    if (HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1) != HAL_OK) {
+        Error_Handler();
+    }
 }
 
 // Low-level trigger pulse percentage of arr, for each volume level from 0 to 5

@@ -10,4 +10,6 @@ void buzz_init();
 void buzz_start(uint32_t frequencyHZ, uint8_t volume);
 void buzz_stop();
 
+extern void Error_Handler(void);
+
 #endif // BUZZER_H

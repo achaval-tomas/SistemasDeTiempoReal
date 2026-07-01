@@ -47,7 +47,9 @@ static void RE_LongPressTimerCallback(TimerHandle_t xTimer){
 
 void RE_Init(TIM_HandleTypeDef *htim, QueueHandle_t eventsQueue) {
     encoder_TIM = htim;
-    HAL_TIM_Encoder_Start(encoder_TIM, TIM_CHANNEL_ALL);
+    if (HAL_TIM_Encoder_Start(encoder_TIM, TIM_CHANNEL_ALL) != HAL_OK) {
+        Error_Handler();
+    }
     encoder_LastTIMCount = __HAL_TIM_GET_COUNTER(encoder_TIM);
 
     encoder_Queue = eventsQueue;
