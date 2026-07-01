@@ -11,11 +11,19 @@ float absf(float x) {
     return (x < 0.0f) ? -x : x;
 }
 
-void get_elapsed_time(TickType_t start, uint8_t *hours, uint8_t *minutes, uint8_t *seconds){
+bool get_elapsed_time(TickType_t start, uint8_t *hours, uint8_t *minutes, uint8_t *seconds){
     uint32_t elapsed_seconds = (xTaskGetTickCount() - start) / configTICK_RATE_HZ;
-    *hours   = elapsed_seconds / 3600;
-    *minutes = (elapsed_seconds % 3600) / 60;
-    *seconds = elapsed_seconds % 60;
+    uint8_t new_hours   = elapsed_seconds / 3600;
+    uint8_t new_minutes = (elapsed_seconds % 3600) / 60;
+    uint8_t new_seconds = elapsed_seconds % 60;
+
+    if (new_seconds != *seconds) {
+        *hours = new_hours;
+        *minutes = new_minutes;
+        *seconds = new_seconds;
+        return true; // Time has changed
+    }
+    return false; // Time has not changed
 }
 
 typedef struct {
@@ -49,12 +57,11 @@ void update_climb_history(float new_climb_rate) {
 
 void DisplayTask(void *pvParameters) {
   lcd_init();
-  const TickType_t dislpayDT_ticks = pdMS_TO_TICKS(DISPLAY_DT_MS);
   
   displayQueueData_td disData;
   TickType_t flight_start_tick = 0;
   uint16_t takeoff_ASL_m = 0;
-  uint8_t hours, minutes, seconds;
+  uint8_t hours = 0, minutes = 0, seconds = -1; // Inicializar a -1 para forzar la actualización en el primer ciclo
   bool should_set_initial_stats = true;
   float altitude, climb_rate, temperature;
 
@@ -83,40 +90,49 @@ void DisplayTask(void *pvParameters) {
         if (should_set_initial_stats) {
           climb_history = clear_history;
           flight_start_tick = xTaskGetTickCount();
+          seconds = -1;
           takeoff_ASL_m = bmp280_estimate_altitude(disData.varioData.pressure_Pa, disData.varioData.temperature_C, varioConfig.sealevel_hPa*100);
           should_set_initial_stats = false;
           lcd_clear();
         }
-        
-        // Linea 1: Tiempo y temperatura
-        temperature = disData.varioData.temperature_C;
-        get_elapsed_time(flight_start_tick, &hours, &minutes, &seconds);
-        lcd_printf_at(0, 0, "%02u:%02u:%02u       %3.0f\xDF""C", hours, minutes, seconds, temperature);
-        
-        // Linea 2: ASL estimada
-        altitude = bmp280_estimate_altitude(disData.varioData.pressure_Pa, temperature, varioConfig.sealevel_hPa*100);
-        lcd_printf_at(1, 0, "A: %.0fm     ", altitude);
-        
-        // Linea 3: Vario e historial de símbolos de ascenso/descenso
+
+        // Linea 3: Vario y flecha de ascenso/descenso
+        // Se actualiza siempre que se recibe un nuevo evento de DISPLAY_UPDATE_VARIO
         climb_rate = disData.varioData.climb_rate_mps;
         if (absf(climb_rate) < 0.1f) climb_rate = 0.0f; // Deadzone para climb-rates bajos
+        lcd_printf_at(2, 0, "V: %+.1fm/s ", climb_rate);          
 
-        update_climb_history(climb_rate);
-        lcd_printf_at(2, 0, "V: %+.1fm/s ", climb_rate);
-
-        for (int8_t i = 7; i >= 0; --i) {
-            uint8_t symbol_index = (climb_history.index + i) % 8;
-            lcd_printf_at(2, 11 + i, "%c", (char)climb_history.symbols[symbol_index]);
-        }
         uint8_t arrow_char = (
           (climb_rate >= varioConfig.lift_threshold) ? CHAR_UP_ARROW
           : ((climb_rate <= varioConfig.sink_threshold) ? CHAR_DOWN_ARROW 
           : ' ')
         );
         lcd_printf_at(2, 19, "%c", (char)arrow_char);
+        
+        // Las lineas 1, 2, 4 y el gráfico de historial se actualizan sólo una vez por segundo
+        if (get_elapsed_time(flight_start_tick, &hours, &minutes, &seconds)){
+          // Linea 1: Tiempo y temperatura
+          temperature = disData.varioData.temperature_C;
+          lcd_printf_at(0, 0, "%02u:%02u:%02u       %3.0f\xDF""C", hours, minutes, seconds, temperature);
+        
+          // Linea 2: ASL estimada
+          altitude = bmp280_estimate_altitude(disData.varioData.pressure_Pa, temperature, varioConfig.sealevel_hPa*100);
+          lcd_printf_at(1, 0, "A: %.0fm     ", altitude);
+          
+          // Historial de símbolos de ascenso/descenso en la línea 3
+          update_climb_history(climb_rate);
+          for (int8_t i = 7; i >= 0; --i) {
+            uint8_t symbol_index = (climb_history.index + i) % 8;
+            lcd_printf_at(2, 11 + i, "%c", (char)climb_history.symbols[symbol_index]);
+          }
 
-        // Linea 4: Altura relativa al despegue
-        lcd_printf_at(3, 0, "Desp: %+.0fm      ", altitude - takeoff_ASL_m);
+          // Linea 4: Altura relativa al despegue
+          lcd_printf_at(3, 0, "Desp: %+.0fm      ", altitude - takeoff_ASL_m);
+        }
+
+        // Delay de 200ms para que la pantalla no se actualice demasiado rápido y sea legible
+        vTaskDelay(pdMS_TO_TICKS(200));
+
         break;
 
       case DISPLAY_CLEAR:
@@ -139,8 +155,5 @@ void DisplayTask(void *pvParameters) {
         // ignorar
         break;
     }
-
-    // Actualizar, a lo sumo, cada dislpayDT_ticks
-    vTaskDelay(dislpayDT_ticks);
   }
 }

@@ -50,8 +50,6 @@ void BuzzerTask(void *pvParameters);
 
 
 /* ----- Display-related structures for communication and task definition ----- */
-// Time interval for display updates
-#define DISPLAY_DT_MS 250
 
 typedef enum {
   DISPLAY_ON,
