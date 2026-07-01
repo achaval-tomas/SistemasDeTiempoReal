@@ -58,11 +58,11 @@ uint8_t update_index(uint8_t currentIndex, int16_t delta, uint8_t maxItems);
 // MENÚ
 const menuItem_td menu[] = {
     {"Comenzar vuelo",     ITEM_TYPE_ACTION,  {.action = start_flight_action}},
+    {"Volumen",            ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.volume, 1.0f, 0.0f, 5.0f}}},
+    {"Sensibilidad",       ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.sensitivity, 1.0f, 1.0f, 10.0f}}},
+    {"Ajustar QNH",        ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.sealevel_hPa, 1.0f, 950.0f, 1300.0f}}},
     {"Umbral subida",      ITEM_TYPE_SETTING, {.setting = {FLOAT, &varioConfig.lift_threshold, 0.1f, 0.1f, 5.0f}}},
     {"Umbral bajada",      ITEM_TYPE_SETTING, {.setting = {FLOAT, &varioConfig.sink_threshold, 0.1f, -10.0f, -0.1f}}},
-    {"Sensibilidad",       ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.sensitivity, 1.0f, 1.0f, 10.0f}}},
-    {"Volumen",            ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.volume, 1.0f, 0.0f, 5.0f}}},
-    {"Ajustar QNH",        ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.sealevel_hPa, 1.0f, 950.0f, 1300.0f}}},
     {"Tono lift (Hz)",     ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.lift_hz_base, 10.0f, 500.0f, 1500.0f}}},
     {"Paso lift (Hz)",     ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.lift_hz_scale, 10.0f, 0.0f, 200.0f}}},
     {"Tono sink (Hz)",     ITEM_TYPE_SETTING, {.setting = {INT, &varioConfig.sink_hz_base, 10.0f, 100.0f, 500.0f}}},
