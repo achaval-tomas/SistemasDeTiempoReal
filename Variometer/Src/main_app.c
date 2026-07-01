@@ -4,10 +4,10 @@
 #include "my_tasks.h"
 #include "encoder.h"
 
-#define SENSOR_PRIORITY  5  // Must be able to run at a fixed rate
-#define BUZZER_PRIORITY  4  // Must wake up as soon as data is enqueued
-#define UI_PRIORITY      3  // Encoder actions more responsive than display
-#define DISPLAY_PRIORITY 2  // Response time not as important
+#define SENSOR_PRIORITY  (configMAX_PRIORITIES - 2)  // Must be able to run at a fixed rate
+#define BUZZER_PRIORITY  (configMAX_PRIORITIES - 3)  // Must wake up as soon as data is enqueued
+#define UI_PRIORITY      (configMAX_PRIORITIES - 4)  // Encoder actions more responsive than display
+#define DISPLAY_PRIORITY (configMAX_PRIORITIES - 5)  // Response time not as important
 
 TaskHandle_t sensor_task_handle = NULL;
 QueueHandle_t buzzerQueue = NULL, displayQueue = NULL, encoderEventQueue = NULL;
