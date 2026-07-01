@@ -26,7 +26,8 @@ void lcd_send_string (char *str);  // send string to the lcd
 void lcd_cursor(uint8_t mode);
 void lcd_put_cur(uint8_t row, uint8_t col);  // put cursor at the entered position
 
-void lcd_clear (void);
+void lcd_clear(void);
+void lcd_clear_blocking(void);
 void lcd_backlight(uint8_t state);
 
 // Print formatted text at specific position

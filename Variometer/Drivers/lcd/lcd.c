@@ -209,6 +209,11 @@ void lcd_put_cur(uint8_t row, uint8_t col) {
     lcd_send_cmd(LCD_CMD_SET_DDRAM_ADDR | pos);
 }
 
+void lcd_clear_blocking(void){
+    lcd_send_cmd(LCD_CMD_CLEAR_DISPLAY);
+    HAL_Delay(2); 
+}
+
 void lcd_clear(void) {
     lcd_send_cmd(LCD_CMD_CLEAR_DISPLAY);
     vTaskDelay(pdMS_TO_TICKS(2));
