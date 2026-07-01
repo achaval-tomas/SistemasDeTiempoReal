@@ -16,6 +16,8 @@
 
 void lcd_init (void);   // initialize lcd (usa vTaskDelay)
 
+void lcd_init_emergency(void); // initialize lcd without vTaskDelay, for use in Error_Handler
+
 void lcd_off(void);
 void lcd_on(void);
 

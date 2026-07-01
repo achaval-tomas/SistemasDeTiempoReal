@@ -175,6 +175,7 @@ void Error_Handler(void)
   // Por ahora, los errores de hardware se muestran en la LCD y se detiene el sistema.
   // En caso de que el error sea propio de la LCD, no se podrá mostrar.
   // En un futuro, se podría agregar una led indicadora de estado.
+  lcd_init_emergency();
   lcd_printf_at(0, 0, "ERROR DE HARDWARE   ");
   lcd_printf_at(1, 0, "Sistema detenido    ");
   lcd_printf_at(2, 0, "Desconecte y vuelva ");
