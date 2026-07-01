@@ -12,17 +12,17 @@ void get_buzz_params(float climb_rate, uint32_t *frequencyHZ, uint32_t *duration
 
     // Calcular los parámetros del "beep" según el climb_rate y los umbrales configurados
     if (climb_rate >= varioConfig.lift_threshold) {
-        delta_rate = climb_rate - varioConfig.lift_threshold;
+        delta_rate = climb_rate - varioConfig.lift_threshold; // delta_rate será positivo
         freq = (uint32_t)(varioConfig.lift_hz_base + (delta_rate * varioConfig.lift_hz_scale));
 
-        duration = 400 - (uint32_t)((climb_rate - varioConfig.lift_threshold) * 100);
+        duration = 400 - (uint32_t)(delta_rate * 100);
         duration = (duration < 50) ? 50 : duration;
 
-        silence = 50 - (uint32_t)((climb_rate-varioConfig.lift_threshold) * 10);
+        silence = 50 - (uint32_t)(delta_rate * 10);
         silence = (silence < 10) ? 10 : silence;
 
     } else if (climb_rate <= varioConfig.sink_threshold) {
-        delta_rate = varioConfig.sink_threshold - climb_rate;
+        delta_rate = climb_rate - varioConfig.sink_threshold; // delta_rate será negativo
         freq = (uint32_t)(varioConfig.sink_hz_base + (delta_rate * varioConfig.sink_hz_scale));
 
         if (freq < (uint32_t)varioConfig.sink_hz_min) {
