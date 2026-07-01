@@ -28,7 +28,7 @@ static const varioConfig_td defaultConfig = {
   .sink_hz_base = 300,
   .sink_hz_scale = 100,
   .sink_hz_min = 100,
-  .sealevel_hPa = 1014.0f,
+  .sealevel_hPa = 1020.0f,
  };
 
 // Variables shared by all tasks

@@ -4,11 +4,18 @@
 #include <stdint.h>
 #include "stdbool.h"
 #include <stdio.h>
-#include "bmp280.h" // Para estimaciones de altitud
 #include "portmacrocommon.h"
+#include <math.h>
 
 float absf(float x) {
     return (x < 0.0f) ? -x : x;
+}
+
+// Estimar altitud con la fórmula estándar de la atmósfera
+uint32_t estimate_altitude(float pressure_Pa, float seaLevelPressure_Pa){
+    if (seaLevelPressure_Pa <= 0.0f) seaLevelPressure_Pa = 101325.0f;
+
+    return (uint32_t)(44330.0f * (1.0f - powf(pressure_Pa / seaLevelPressure_Pa, 0.19029495f)));
 }
 
 bool get_elapsed_time(TickType_t start, uint8_t *hours, uint8_t *minutes, uint8_t *seconds){
@@ -60,10 +67,10 @@ void DisplayTask(void *pvParameters) {
   
   displayQueueData_td disData;
   TickType_t flight_start_tick = 0;
-  uint16_t takeoff_ASL_m = 0;
+  uint32_t altitude, takeoff_ASL_m = 0;
   uint8_t hours = 0, minutes = 0, seconds = -1; // Inicializar a -1 para forzar la actualización en el primer ciclo
   bool should_set_initial_stats = true;
-  float altitude, climb_rate, temperature;
+  float climb_rate, temperature;
 
   while (1) {
     xQueueReceive(displayQueue, (void *)&disData, portMAX_DELAY);
@@ -91,7 +98,7 @@ void DisplayTask(void *pvParameters) {
           climb_history = clear_history;
           flight_start_tick = xTaskGetTickCount();
           seconds = -1;
-          takeoff_ASL_m = bmp280_estimate_altitude(disData.varioData.pressure_Pa, disData.varioData.temperature_C, varioConfig.sealevel_hPa*100);
+          takeoff_ASL_m = estimate_altitude(disData.varioData.pressure_Pa, varioConfig.sealevel_hPa*100);
           should_set_initial_stats = false;
           lcd_clear();
         }
@@ -116,8 +123,8 @@ void DisplayTask(void *pvParameters) {
           lcd_printf_at(0, 0, "%02u:%02u:%02u       %3.0f\xDF""C", hours, minutes, seconds, temperature);
         
           // Linea 2: ASL estimada
-          altitude = bmp280_estimate_altitude(disData.varioData.pressure_Pa, temperature, varioConfig.sealevel_hPa*100);
-          lcd_printf_at(1, 0, "A: %.0fm     ", altitude);
+          altitude = estimate_altitude(disData.varioData.pressure_Pa, varioConfig.sealevel_hPa*100);
+          lcd_printf_at(1, 0, "A: %um     ", altitude);
           
           // Historial de símbolos de ascenso/descenso en la línea 3
           update_climb_history(climb_rate);
@@ -127,7 +134,7 @@ void DisplayTask(void *pvParameters) {
           }
 
           // Linea 4: Altura relativa al despegue
-          lcd_printf_at(3, 0, "Desp: %+.0fm      ", altitude - takeoff_ASL_m);
+          lcd_printf_at(3, 0, "Desp: %+dm      ", (int)(altitude - takeoff_ASL_m));
         }
 
         // Delay de 200ms para que la pantalla no se actualice demasiado rápido y sea legible
