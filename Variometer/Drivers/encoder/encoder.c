@@ -37,9 +37,9 @@ static void RE_PeriodicTimerCallback(TimerHandle_t xTimer) {
 // Trigger cuando el botón se mantiene apretado más de RE_LONG_PRESS_MS
 static void RE_LongPressTimerCallback(TimerHandle_t xTimer){
     if (
-        (xSemaphoreTake(encoder_LongPressToken, 0) == pdTRUE)
-        &&
         (HAL_GPIO_ReadPin(ENCODER_SW_PORT, ENCODER_SW_PIN) == GPIO_PIN_RESET)
+        &&
+        (xSemaphoreTake(encoder_LongPressToken, 0) == pdTRUE)
     ) {
         encoderEvent_td newEvent = {.type = ENCODER_EVENT_LONG_PRESS, .delta = 0};
         xQueueSend(encoder_Queue, &newEvent, 0);
