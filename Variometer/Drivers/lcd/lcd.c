@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 
 /* LCD Hardware Mapping */
 #define SLAVE_ADDRESS_LCD 0x4E
@@ -34,7 +35,10 @@ typedef enum {
 // 0x28 -> 4-bit mode, 2 lines (even for 4-line displays), 5x8 font
 #define LCD_4BIT_MODE       0x28 
 
+// Variables de estado internas
 static uint8_t lcd_backlight_val = 0; // Initialized OFF
+static uint8_t lcd_initialized = 0;
+static char lines[DISPLAY_LINE_COUNT][DISPLAY_LINE_WIDTH + 1];
 
 void lcd_send_internal(uint8_t data, uint8_t flags) {
     uint8_t up = data & 0xF0;
@@ -149,7 +153,6 @@ void lcd_load_custom_characters() {
     lcd_create_custom_char(CHAR_MAX_CLIMB, max_climb);
     lcd_create_custom_char(CHAR_SINK, sink);
 }
-static uint8_t lcd_initialized = 0;
 
 void lcd_init(void) {
     HAL_Delay(50);
@@ -223,20 +226,50 @@ void lcd_put_cur(uint8_t row, uint8_t col) {
 void lcd_clear(void) {
     lcd_send_cmd(LCD_CMD_CLEAR_DISPLAY);
     HAL_Delay(2);
+
+    for (uint8_t row = 0; row < DISPLAY_LINE_COUNT; row++) {
+        memset(lines[row], ' ', DISPLAY_LINE_WIDTH);
+        lines[row][DISPLAY_LINE_WIDTH] = '\0';
+    }
 }
 
-void lcd_printf_at(uint8_t row, uint8_t col, const char *fmt, ...) {
-    lcd_put_cur(row, col);
 
-    char buffer[DISPLAY_LINE_WIDTH+1];
+/*
+ *  Imprime un string formateado en la posición (row, col) de la pantalla LCD.
+ *  Solo actualiza los caracteres que han cambiado para minimizar el tráfico I2C.
+ */
+void lcd_printf_at(uint8_t row, uint8_t col, const char *fmt, ...) {
+    if (row >= DISPLAY_LINE_COUNT || col >= DISPLAY_LINE_WIDTH)
+        return;
+
+    char buffer[DISPLAY_LINE_WIDTH + 1];
     va_list args;
     va_start(args, fmt);
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
 
-    buffer[DISPLAY_LINE_WIDTH] = '\0'; // Asegurar que termine en caracter nulo
+    size_t len = strlen(buffer);
 
-    lcd_send_string(buffer);
+    if (len > DISPLAY_LINE_WIDTH - col)
+        len = DISPLAY_LINE_WIDTH - col;
+
+    for (size_t i = 0; i < len; ){
+        // Saltear caracteres que ya están en la pantalla
+        while (i < len && buffer[i] == lines[row][col + i]) {
+            i++;
+        }
+        if (i == len)
+            break;
+
+        // Mover el cursor a la posición correcta y escribir los caracteres
+        // hasta que se encuentre otra coincidencia o se alcance el final de la línea
+        lcd_put_cur(row, col + i);
+        do {
+            lcd_send_data((uint8_t)buffer[i]);
+            lines[row][col + i] = buffer[i];
+            i++;
+        } while (i < len && buffer[i] != lines[row][col + i]);
+    }
 }
 
 void lcd_backlight(uint8_t state) {
