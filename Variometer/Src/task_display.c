@@ -77,8 +77,8 @@ void DisplayTask(void *pvParameters) {
       
     switch (disData.type) {
       case DISPLAY_ON:
-        lcd_on();
         lcd_clear();
+        lcd_on();
         break;
 
       case DISPLAY_UPDATE_MENU:

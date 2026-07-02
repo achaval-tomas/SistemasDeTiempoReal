@@ -171,8 +171,9 @@ void lcd_init(void) {
 
     lcd_send_cmd(LCD_4BIT_MODE);
     lcd_send_cmd(LCD_CMD_DISPLAY_CONTROL | LCD_DISPLAY_OFF);
-    lcd_send_cmd(LCD_CMD_CLEAR_DISPLAY);
-    HAL_Delay(2);
+    
+    lcd_clear();
+
     lcd_send_cmd(LCD_CMD_ENTRY_MODE_SET);
 
     lcd_load_custom_characters();
