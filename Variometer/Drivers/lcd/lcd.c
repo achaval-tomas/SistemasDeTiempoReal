@@ -1,8 +1,6 @@
 #include "lcd.h"
 #include "stm32h5xx_hal.h"
 #include "i2c.h"
-#include "FreeRTOS.h"
-#include "task.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -154,24 +152,24 @@ void lcd_load_custom_characters() {
 static uint8_t lcd_initialized = 0;
 
 void lcd_init(void) {
-    vTaskDelay(pdMS_TO_TICKS(50));
+    HAL_Delay(50);
 
     uint8_t cmd = 0x30 | lcd_backlight_val;
     uint8_t data_t[2] = {cmd | PIN_EN, cmd}; 
     
     for(int i = 0; i < 3; i++) {
         HAL_I2C_Master_Transmit(&hi2c2, SLAVE_ADDRESS_LCD, data_t, 2, 100);
-        vTaskDelay(pdMS_TO_TICKS(i == 0 ? 5 : 1));
+        HAL_Delay(i == 0 ? 5 : 1);
     }
 
     uint8_t data_4bit[2] = {(0x20 | lcd_backlight_val) | PIN_EN, (0x20 | lcd_backlight_val)};
     HAL_I2C_Master_Transmit(&hi2c2, SLAVE_ADDRESS_LCD, data_4bit, 2, 100);
-    vTaskDelay(pdMS_TO_TICKS(10));
+    HAL_Delay(10);
 
     lcd_send_cmd(LCD_4BIT_MODE);
     lcd_send_cmd(LCD_CMD_DISPLAY_CONTROL | LCD_DISPLAY_OFF);
     lcd_send_cmd(LCD_CMD_CLEAR_DISPLAY);
-    vTaskDelay(pdMS_TO_TICKS(2));
+    HAL_Delay(2);
     lcd_send_cmd(LCD_CMD_ENTRY_MODE_SET);
 
     lcd_load_custom_characters();
@@ -180,34 +178,13 @@ void lcd_init(void) {
 }
 
 void lcd_init_emergency(void) {
-    if (lcd_initialized)
+    if (lcd_initialized){
+        lcd_send_cmd(LCD_CMD_DISPLAY_CONTROL | LCD_DISPLAY_ON);
         return;
-
-    HAL_Delay(50);
-
-    uint8_t cmd = 0x30 | lcd_backlight_val;
-    uint8_t data_t[2] = { cmd | PIN_EN, cmd };
-
-    for (int i = 0; i < 3; i++) {
-        HAL_I2C_Master_Transmit(&hi2c2, SLAVE_ADDRESS_LCD, data_t, 2, 100);
-        HAL_Delay(i == 0 ? 5 : 1);
     }
 
-    uint8_t data_4bit[2] = {
-        (0x20 | lcd_backlight_val) | PIN_EN,
-        (0x20 | lcd_backlight_val)
-    };
-
-    HAL_I2C_Master_Transmit(&hi2c2, SLAVE_ADDRESS_LCD, data_4bit, 2, 100);
-    HAL_Delay(10);
-
-    lcd_send_cmd(LCD_4BIT_MODE);
+    lcd_init();
     lcd_send_cmd(LCD_CMD_DISPLAY_CONTROL | LCD_DISPLAY_ON);
-    lcd_send_cmd(LCD_CMD_CLEAR_DISPLAY);
-    HAL_Delay(2);
-    lcd_send_cmd(LCD_CMD_ENTRY_MODE_SET);
-
-    lcd_initialized = 1;
 }
 
 void lcd_send_string(char *str) {
@@ -245,7 +222,7 @@ void lcd_put_cur(uint8_t row, uint8_t col) {
 
 void lcd_clear(void) {
     lcd_send_cmd(LCD_CMD_CLEAR_DISPLAY);
-    vTaskDelay(pdMS_TO_TICKS(2));
+    HAL_Delay(2);
 }
 
 void lcd_printf_at(uint8_t row, uint8_t col, const char *fmt, ...) {
