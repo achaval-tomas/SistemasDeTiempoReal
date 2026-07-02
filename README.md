@@ -45,25 +45,25 @@ La única modificación de esta sección se encuentra en la parte de interrupcio
 ### Tareas Principales y Prioridades
 
 - Tarea de Interfaz de Usuario:
-  ➢ Prioridad baja, se requiere tiempo de respuesta “humano”.
-  ➢ Responde a eventos de un encoder rotativo, permitiendo la navegación de un menú, cambios de configuraciones e inicio/frenado de vuelos.
+    - Prioridad baja, se requiere tiempo de respuesta “humano”.
+    - Responde a eventos de un encoder rotativo, permitiendo la navegación de un menú, cambios de configuraciones e inicio/frenado de vuelos.
 
 - Tarea de Sensado y Filtrado:
-➢ Prioridad máxima para garantizar frecuencia de muestreo constante.
-➢ Lee los datos del sensor de presión atmosférica y aplica un filtro de Kalman a una frecuencia constante.
+    - Prioridad máxima para garantizar frecuencia de muestreo constante.
+    - Lee los datos del sensor de presión atmosférica y aplica un filtro de Kalman a una frecuencia constante.
 
 - Tarea de Control de Sonido:
-➢ Segunda prioridad más alta. Luego de que se produzca un dato por la tarea de sensado, lo primero que debe ocurrir es el feedback auditivo. No es prioridad máxima ya que si la tarea de sensado está leyendo un nuevo dato, conviene esperar antes de emitir un sonido que quizás ya no es relevante.
-➢ Esta tarea emite los sonidos a distintas frecuencias y cadencias que indican ascenso/descenso al piloto a partir de los datos obtenidos del sensor. También emite un sonido cuando el usuario modifica la configuración de volumen.
+    - Segunda prioridad más alta. Luego de que se produzca un dato por la tarea de sensado, lo primero que debe ocurrir es el feedback auditivo. No es prioridad máxima ya que si la tarea de sensado está leyendo un nuevo dato, conviene esperar antes de emitir un sonido que quizás ya no es relevante.
+    - Esta tarea emite los sonidos a distintas frecuencias y cadencias que indican ascenso/descenso al piloto a partir de los datos obtenidos del sensor. También emite un sonido cuando el usuario modifica la configuración de volumen.
 
 - Tarea de Control de Display:
-➢ Prioridad mínima, tiempo de respuesta “humano”.
-➢ Esta tarea recibe eventos de actualización de menú o datos de vuelo y muestra lo requerido en el panel LCD.
+    - Prioridad mínima, tiempo de respuesta “humano”.
+    - Esta tarea recibe eventos de actualización de menú o datos de vuelo y muestra lo requerido en el panel LCD.
 
 - Extra: Software Timer para detectar rotaciones del encoder
-➢ Modo AutoReload con período de 50ms
-➢ Asociado a una función de callback que lee el valor del timer asociado al encoder e informa al menú ante eventos de rotación.
-➢ Se puede deshabilitar en modo de vuelo para reducir jitter ya que las rotaciones sólo interesan en el menú principal y rehabilitar tras salir del modo de vuelo mediante una pulsación larga.
+    - Modo AutoReload con período de 50ms
+    - Asociado a una función de callback que lee el valor del timer asociado al encoder e informa al menú ante eventos de rotación.
+    - Se puede deshabilitar en modo de vuelo para reducir jitter ya que las rotaciones sólo interesan en el menú principal y rehabilitar tras salir del modo de vuelo mediante una pulsación larga.
 
 ### Sincronización y Comunicación
 
