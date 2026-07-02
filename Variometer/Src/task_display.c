@@ -78,18 +78,33 @@ void DisplayTask(void *pvParameters) {
     switch (disData.type) {
       case DISPLAY_ON:
         lcd_on();
+        lcd_clear();
         break;
 
       case DISPLAY_UPDATE_MENU:
+
         // Actualizar la pantalla con el menú, mostrando hasta 4 lineas y un indicador de la linea seleccionada
-        for (uint8_t i = 0; i<DISPLAY_LINE_COUNT; ++i){
-          if (i == disData.menuData.selectedLine)
-            lcd_printf_at(i, 0, "%c %-18s", CHAR_RIGHT_POINTER, disData.menuData.lines[i]);
-          else
-            lcd_printf_at(i, 0, "%-20s", disData.menuData.lines[i]);
+        for (uint8_t i = 0; i < DISPLAY_LINE_COUNT; ++i) {
+            if (i == disData.menuData.selectedLine) {
+                lcd_printf_at(
+                  i, 0,
+                  (i == 0 && disData.menuData.totalPages > 0) ? "%c %-15.15s" : "%c %-18.18s",
+                  CHAR_RIGHT_POINTER,
+                  disData.menuData.lines[i]
+                );
+            } else {
+                lcd_printf_at(
+                  i, 0,
+                  (i == 0 && disData.menuData.totalPages > 0) ? "%-17.17s" : "%-20.20s",
+                  disData.menuData.lines[i]
+                );
+            }
         }
+
+        // Mostrar el indicador de página
         if (disData.menuData.totalPages > 0)
           lcd_printf_at(0, 17, "%u/%u", disData.menuData.currentPage, disData.menuData.totalPages);
+
         break;
       
       case DISPLAY_UPDATE_VARIO:
