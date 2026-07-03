@@ -107,6 +107,7 @@ extern uint32_t SystemCoreClock;
 
 /* Software timer definitions. */
 #define configUSE_TIMERS                         1
+// Prioridad de la Timer Service Daemon Task, es la más alta para que actúen como interrupciones
 #define configTIMER_TASK_PRIORITY                ( configMAX_PRIORITIES - 1 )
 #define configTIMER_QUEUE_LENGTH                 10
 #define configTIMER_TASK_STACK_DEPTH             128

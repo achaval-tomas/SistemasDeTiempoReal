@@ -4,10 +4,10 @@
 #include "my_tasks.h"
 #include "encoder.h"
 
-#define SENSOR_PRIORITY  (configMAX_PRIORITIES - 2)  // Must be able to run at a fixed rate
-#define BUZZER_PRIORITY  (configMAX_PRIORITIES - 3)  // Must wake up as soon as data is enqueued
-#define UI_PRIORITY      (configMAX_PRIORITIES - 4)  // Encoder actions more responsive than display
-#define DISPLAY_PRIORITY (configMAX_PRIORITIES - 5)  // Response time not as important
+#define SENSOR_PRIORITY  (configMAX_PRIORITIES - 2)  // Máxima prioridad para asegurar DT constante
+#define BUZZER_PRIORITY  (configMAX_PRIORITIES - 3)  // Primera tarea que debe responder a los datos del sensor
+#define UI_PRIORITY      (configMAX_PRIORITIES - 4)  // Acciones del encoder más importantes que la actualización de la pantalla
+#define DISPLAY_PRIORITY (configMAX_PRIORITIES - 5)  // Menor prioridad, sólo actualizar la pantalla cuando no hay nada más que hacer
 
 TaskHandle_t sensor_task_handle = NULL;
 QueueHandle_t buzzerQueue = NULL, displayQueue = NULL, encoderEventQueue = NULL;
@@ -19,12 +19,12 @@ void start_variometer(void){
     // Cargar configuración por defecto al iniciar el variometro
     varioConfig = defaultConfig;
 
-    // Create queues for task communication, mostly used as mutexes
+    // Crear colas para comunicación entre tareas
     buzzerQueue = xQueueCreate(1, sizeof(buzzerQueueData_td));
     displayQueue = xQueueCreate(1, sizeof(displayQueueData_td));
     encoderEventQueue = xQueueCreate(8, sizeof(encoderEvent_td));
 
-    // Create tasks
+    // Crear tareas del variometro
     xTaskCreate(
         BMP280Task,
         "bmp280 Task",
@@ -62,6 +62,10 @@ void start_variometer(void){
     );
     
     vTaskStartScheduler();
+
+    // Nunca se debería alcanzar este punto
+    // Si se alcanza, error handler reseteará el sistema
+    Error_Handler();
 }
 
 // Callback para cuando se SUELTA el botón

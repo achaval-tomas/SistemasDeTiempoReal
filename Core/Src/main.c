@@ -39,6 +39,7 @@ void MX_FREERTOS_Init(void);
   */
 int main(void)
 {
+  // Inicializar sistema
   MPU_Config();
   HAL_Init();
   SystemClock_Config();
@@ -51,7 +52,10 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
 
+  // Lanzar el variómetro
   start_variometer();
+
+  // Nunca se debería alcanzar este punto
   while (1){}
 }
 
